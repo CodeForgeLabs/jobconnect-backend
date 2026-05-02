@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type CustomClaims struct {
@@ -56,34 +57,15 @@ func VerifyToken(tokenString string) (*jwt.Token, *CustomClaims, error) {
 	return token, claims, nil
 }
 
-/*
-
-func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request){
-	user := new(entities.User)
-	err := json.NewDecoder(r.Body).Decode(&user)
-	if err !=nil{
-		util.WriteError(w,http.StatusBadRequest,err)
-		return
+func HashPassword(password string) (string, error) {
+	bcryptPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
 	}
-	existingUser,err := h.iuserusecase.Login(user)
-	if err != nil{
-		util.WriteError(w,http.StatusBadRequest,err)
-		return
-	}
-
-	token, err :=auth.CreateToken(existingUser.ID,string(existingUser.Role))
-	if err != nil{
-		util.WriteError(w,http.StatusBadRequest,err)
-		return
-	}
-	http.SetCookie(w, &http.Cookie{
-		Name:     "token",
-		Value:    token,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true,
-	})
-	util.WriteJSON(w,http.StatusOK,map[string]string{"token":token})
+	return string(bcryptPassword), nil
 }
 
-*/
+func CheckPasswordHash(password, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
+}

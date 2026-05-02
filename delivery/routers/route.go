@@ -5,7 +5,10 @@ import (
 	"log"
 	"net/http"
 
+	handler "job-connect/delivery/handlers"
 	database "job-connect/infrastructure/database"
+	"job-connect/infrastructure/repository"
+	"job-connect/usecase"
 
 	"github.com/gorilla/mux"
 )
@@ -24,33 +27,68 @@ func (r *Router) RegisterRoute() {
 		log.Fatal(err)
 	}
 	fmt.Println("Connected to database")
-	// FOR MIGRATION PURPOSES ONLY, COMMENT OUT AFTERWARDS
-	// err=database.Migrate(db)
-	// if err != nil{
-	// 	log.Fatal(err)
-	// }
-	// fmt.Println("Database migrated successfully")
 
-_:
-	// WE WILL ADD MIDDLEWARES AT THE END
-	// middleware.RoleMiddleware("FREELANCER")
-	// _ = middleware.RoleMiddleware("CLIENT")
-	// both := middleware.RoleMiddleware("FREELANCER", "CLIENT")
+	// FOR DEVELOPMENT ONLY
+	err = database.Migrate(db)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("Database migrated successfully")
 
-	// userRepo := repository.NewUserRepository(db)
-	// userUsecase := usecase.NewUserUsecase(userRepo)
-	// userHandler := handler.NewUserHandler(userUsecase)
-	// baseRoutes := r.route.PathPrefix("/api/v1").Subrouter()
-	// // user routes
-	// baseRoutes.Handle("/login", http.HandlerFunc(userHandler.Login)).Methods("POST")
-	// baseRoutes.Handle("/create-user", http.HandlerFunc(userHandler.CreateUser)).Methods("POST")
-	// baseRoutes.Handle("/get-user-by-id/{id}", both(http.HandlerFunc(userHandler.GetUserByID))).Methods("GET")
-	// baseRoutes.Handle("/get-user-by-phone_number/{phoneNumber}", both(http.HandlerFunc(userHandler.GetUserByPhoneNumber))).Methods("GET")
-	// baseRoutes.Handle("/update-user/{id}", both(http.HandlerFunc(userHandler.UpdateUser))).Methods("PUT")
-	// baseRoutes.Handle("/delete-user/{id}", both(http.HandlerFunc(userHandler.DeleteUser))).Methods("DELETE")
+	// USER ROUTES
+	userRepo := repository.NewUserRepository(db)
+	userUsecase := usecase.NewUserUsecase(userRepo)
+	userHandler := handler.NewUserHandler(userUsecase)
+	// =========================
+	// BASE API
+	// =========================
+	api := r.route.PathPrefix("/api/v1").Subrouter()
+	// USER ROUTES
+	userRoutes := api.PathPrefix("/users").Subrouter()
 
+	// Public routes
+	userRoutes.HandleFunc("/register", userHandler.CreateUser).Methods("POST")
+	userRoutes.HandleFunc("/login", userHandler.Login).Methods("POST")
+	userRoutes.HandleFunc("/email", userHandler.GetUserByEmail).Methods("GET")
+
+	// Protected routes
+	userRoutes.HandleFunc("/me", userHandler.GetUserByID).Methods("GET")
+	userRoutes.HandleFunc("/me", userHandler.UpdateUser).Methods("PATCH")
+	userRoutes.HandleFunc("/me", userHandler.DeleteUser).Methods("DELETE")
+
+	// =========================
+	// JOB ROUTES (future)
+	// =========================
+	jobRoutes := api.PathPrefix("/jobs").Subrouter()
+	_ = jobRoutes
+
+	// Example:
+	// jobRoutes.HandleFunc("/", jobHandler.CreateJob).Methods("POST")
+	// jobRoutes.HandleFunc("/", jobHandler.GetAllJobs).Methods("GET")
+	// jobRoutes.HandleFunc("/{id}", jobHandler.GetJobByID).Methods("GET")
+	// jobRoutes.HandleFunc("/{id}", jobHandler.UpdateJob).Methods("PATCH")
+	// jobRoutes.HandleFunc("/{id}", jobHandler.DeleteJob).Methods("DELETE")
+
+	// =========================
+	// PROPOSAL ROUTES (future)
+	// =========================
+	proposalRoutes := api.PathPrefix("/proposals").Subrouter()
+	_ = proposalRoutes
+
+	// =========================
+	// PAYMENT ROUTES (future)
+	// =========================
+	paymentRoutes := api.PathPrefix("/payments").Subrouter()
+	_ = paymentRoutes
+
+	// =========================
+	// ADMIN ROUTES (future)
+	// =========================
+	adminRoutes := api.PathPrefix("/admin").Subrouter()
+	_ = adminRoutes
 }
+
 func (r *Router) Run(addr string, router *mux.Router) error {
-	log.Println("Server running on port: ", addr)
+	log.Println("Server running on port:", addr)
 	return http.ListenAndServe(addr, router)
 }

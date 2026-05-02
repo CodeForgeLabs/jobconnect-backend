@@ -1,23 +1,22 @@
-// package infrastructure
+package infrastructure
 
-// import (
-// 	"log"
+import (
+	"job-connect/domain"
+	"log"
 
-// 	"gorm.io/gorm"
-// )
+	"gorm.io/gorm"
+)
 
-// func Migrate(db *gorm.DB) error {
-// 	err := db.AutoMigrate(
-// 		entities.User{},
-// 		entities.Message{},
-// 		entities.Conversation{},
-// 	)
+func Migrate(db *gorm.DB) error {
+	err := db.AutoMigrate(
+		domain.User{},
+	)
 
-// 	if err != nil {
-// 		log.Printf("Error migrating database: %v\n", err)
-// 		return err
-// 	}
+	if err != nil {
+		log.Printf("Error migrating database: %v\n", err)
+		return err
+	}
 
-// 	log.Println("Database migrated successfully")
-// 	return nil
-// }
+	log.Println("Database migrated successfully")
+	return nil
+}

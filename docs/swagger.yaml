@@ -1,0 +1,292 @@
+basePath: /api/v1
+definitions:
+  domain.Availability:
+    enum:
+    - FULLTIME
+    - PARTTIME
+    - CONTRACT
+    - NOT_AVAILABLE
+    type: string
+    x-enum-varnames:
+    - AvailabilityFullTime
+    - AvailabilityPartTime
+    - AvailabilityContract
+    - AvailabilityNotAvailable
+  domain.Role:
+    enum:
+    - CLIENT
+    - FREELANCER
+    - ADMIN
+    type: string
+    x-enum-varnames:
+    - RoleClient
+    - RoleFreelancer
+    - RoleAdmin
+  domain.User:
+    properties:
+      availability:
+        $ref: '#/definitions/domain.Availability'
+      bio:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      headline:
+        description: Optional onboarding/profile
+        type: string
+      hourly_rate:
+        type: number
+      id:
+        type: integer
+      last_name:
+        type: string
+      location:
+        type: string
+      phone_number:
+        type: string
+      profile_picture_url:
+        type: string
+      role:
+        allOf:
+        - $ref: '#/definitions/domain.Role'
+        description: Registration (required)
+      skills:
+        description: store as comma-separated or JSON
+        type: string
+      updated_at:
+        type: string
+    type: object
+  handlers.CreateUserRequest:
+    properties:
+      email:
+        type: string
+      first_name:
+        type: string
+      last_name:
+        type: string
+      password:
+        type: string
+      role:
+        type: string
+    type: object
+  handlers.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+  handlers.UpdateUserRequest:
+    properties:
+      availability:
+        $ref: '#/definitions/domain.Availability'
+      bio:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      headline:
+        type: string
+      hourly_rate:
+        type: number
+      last_name:
+        type: string
+      location:
+        type: string
+      password:
+        type: string
+      phone_number:
+        type: string
+      profile_picture_url:
+        type: string
+      role:
+        $ref: '#/definitions/domain.Role'
+      skills:
+        items:
+          type: string
+        type: array
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Backend API for Job Connect platform
+  title: Job Connect API
+  version: "1.0"
+paths:
+  /users/email:
+    get:
+      description: Retrieve user profile using email
+      parameters:
+      - description: User email
+        in: query
+        name: email
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.User'
+        "400":
+          description: Email required
+          schema:
+            type: string
+        "404":
+          description: User not found
+          schema:
+            type: string
+      summary: Get user by email
+      tags:
+      - Users
+  /users/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user and return JWT cookie
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Invalid request payload
+          schema:
+            type: string
+        "401":
+          description: Invalid email or password
+          schema:
+            type: string
+      summary: Login user
+      tags:
+      - Users
+  /users/me:
+    delete:
+      description: Delete logged-in user account
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "500":
+          description: Delete failed
+          schema:
+            type: string
+      summary: Delete current user
+      tags:
+      - Users
+    get:
+      description: Retrieve logged-in user profile
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.User'
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "404":
+          description: User not found
+          schema:
+            type: string
+      summary: Get current user profile
+      tags:
+      - Users
+    patch:
+      consumes:
+      - application/json
+      description: Update user profile fields partially
+      parameters:
+      - description: User update payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.User'
+        "400":
+          description: Invalid request
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "500":
+          description: Update failed
+          schema:
+            type: string
+      summary: Update current user
+      tags:
+      - Users
+  /users/register:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account
+      parameters:
+      - description: User registration data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Invalid request payload
+          schema:
+            type: string
+        "500":
+          description: Failed to create user
+          schema:
+            type: string
+      summary: Register new user
+      tags:
+      - Users
+securityDefinitions:
+  BearerAuth:
+    in: cookie
+    name: token
+    type: apiKey
+swagger: "2.0"
