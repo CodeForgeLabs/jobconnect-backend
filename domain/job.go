@@ -62,7 +62,8 @@ type Job struct {
 	Status            JobStatus `gorm:"type:varchar(20);default:'OPEN'" json:"status"`
 	ApplicationsCount int       `gorm:"default:0" json:"applications_count"`
 
-	Deadline *time.Time `json:"deadline,omitempty"`
+	Deadline   *time.Time  `json:"deadline,omitempty"`
+	Milestones []Milestone `gorm:"foreignKey:JobID" json:"milestones,omitempty"`
 
 	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`

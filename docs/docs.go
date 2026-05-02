@@ -540,6 +540,12 @@ const docTemplate = `{
                 "max_weekly_hours": {
                     "type": "integer"
                 },
+                "milestones": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.Milestone"
+                    }
+                },
                 "skills": {
                     "description": "skills (simple version)",
                     "type": "string"
@@ -587,6 +593,29 @@ const docTemplate = `{
                 "JobTypeHourly",
                 "JobTypeFixed"
             ]
+        },
+        "domain.Milestone": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_paid": {
+                    "type": "boolean"
+                },
+                "job_id": {
+                    "type": "integer"
+                }
+            }
         },
         "domain.Role": {
             "type": "string",
@@ -704,6 +733,12 @@ const docTemplate = `{
                 "max_weekly_hours": {
                     "type": "integer"
                 },
+                "milestones": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.MilestoneRequest"
+                    }
+                },
                 "skills": {
                     "type": "array",
                     "items": {
@@ -749,6 +784,17 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.MilestoneRequest": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "description": {
+                    "type": "string"
+                }
+            }
+        },
         "handlers.UpdateJobRequest": {
             "type": "object",
             "properties": {
@@ -787,6 +833,9 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "status": {
+                    "type": "string"
                 },
                 "title": {
                     "type": "string"

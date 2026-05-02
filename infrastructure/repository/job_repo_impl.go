@@ -20,15 +20,47 @@ func (r *JobRepository) CreateJob(job *domain.Job) error {
 
 func (r *JobRepository) GetJobByID(id uint) (*domain.Job, error) {
 	var job domain.Job
-	err := r.db.First(&job, id).Error
+
+	err := r.db.
+		Preload("Milestones").
+		First(&job, id).Error
+
 	if err != nil {
 		return nil, err
 	}
+
 	return &job, nil
 }
 
 func (r *JobRepository) UpdateJob(job *domain.Job) error {
-	return r.db.Save(job).Error
+
+	tx := r.db.Begin()
+
+	// update job
+	if err := tx.Save(job).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// delete old milestones
+	if err := tx.Where("job_id = ?", job.ID).Delete(&domain.Milestone{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// re-insert milestones
+	for i := range job.Milestones {
+		job.Milestones[i].JobID = job.ID
+	}
+
+	if len(job.Milestones) > 0 {
+		if err := tx.Create(&job.Milestones).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	return tx.Commit().Error
 }
 
 func (r *JobRepository) DeleteJob(id uint) error {
@@ -100,7 +132,10 @@ func (r *JobRepository) ListJobs(filter domain.JobFilter) ([]*domain.Job, error)
 	query = query.Where("status = ?", domain.StatusOpen).Order("created_at DESC")
 	// EXECUTE
 	// ======================
-	err := query.Find(&jobs).Error
+	err := query.
+		Preload("Milestones").
+		Order("created_at DESC").
+		Find(&jobs).Error
 	if err != nil {
 		return nil, err
 	}
