@@ -340,6 +340,35 @@ func (h *JobHandler) ListJobs(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// ListMyJobs godoc
+// @Summary List my jobs
+// @Tags Jobs
+// @Produce json
+// @Success 200 {array} domain.Job
+// @Failure 401 {object} GenericMessageResponse
+// @Failure 500 {object} GenericMessageResponse
+// @Router /jobs/mine [get]
+func (h *JobHandler) ListMyJobs(w http.ResponseWriter, r *http.Request) {
+
+	userID, _, err := auth.GetUserFromToken(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	jobs, err := h.jobUsecase.ListMyJobs(parseUint(userID))
+	if err != nil {
+		http.Error(w, "failed to fetch jobs", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"jobs": jobs,
+	})
+}
+
 func parseUint(s string) uint {
 	v, _ := strconv.Atoi(s)
 	return uint(v)

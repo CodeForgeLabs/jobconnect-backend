@@ -29,3 +29,7 @@ func (u *ProposalUsecase) UpdateProposal(proposal *domain.Proposal) error {
 func (u *ProposalUsecase) DeleteProposal(id uint) error {
 	return u.propRepo.DeleteProposal(id)
 }
+
+func (u *ProposalUsecase) ListMyProposals(userID uint) ([]*domain.Proposal, error) {
+	return u.propRepo.ListMyProposals(userID)
+}
