@@ -57,35 +57,32 @@ func (r *Router) RegisterRoute() {
 	userRoutes.HandleFunc("/me", userHandler.DeleteUser).Methods("DELETE")
 
 	// =========================
-	// JOB ROUTES (future)
+	// JOB MODULE
 	// =========================
 	jobRoutes := api.PathPrefix("/jobs").Subrouter()
-	_ = jobRoutes
 
-	// Example:
-	// jobRoutes.HandleFunc("/", jobHandler.CreateJob).Methods("POST")
-	// jobRoutes.HandleFunc("/", jobHandler.GetAllJobs).Methods("GET")
-	// jobRoutes.HandleFunc("/{id}", jobHandler.GetJobByID).Methods("GET")
-	// jobRoutes.HandleFunc("/{id}", jobHandler.UpdateJob).Methods("PATCH")
-	// jobRoutes.HandleFunc("/{id}", jobHandler.DeleteJob).Methods("DELETE")
+	jobRepo := repository.NewJobRepository(db)
+	jobUsecase := usecase.NewJobUsecase(jobRepo)
+	jobHandler := handler.NewJobHandler(jobUsecase)
 
 	// =========================
-	// PROPOSAL ROUTES (future)
+	// JOB ENDPOINTS
 	// =========================
-	proposalRoutes := api.PathPrefix("/proposals").Subrouter()
-	_ = proposalRoutes
 
-	// =========================
-	// PAYMENT ROUTES (future)
-	// =========================
-	paymentRoutes := api.PathPrefix("/payments").Subrouter()
-	_ = paymentRoutes
+	// Create job
+	jobRoutes.HandleFunc("", jobHandler.CreateJob).Methods("POST")
 
-	// =========================
-	// ADMIN ROUTES (future)
-	// =========================
-	adminRoutes := api.PathPrefix("/admin").Subrouter()
-	_ = adminRoutes
+	// List jobs (with filters)
+	jobRoutes.HandleFunc("", jobHandler.ListJobs).Methods("GET")
+
+	// Get job by ID
+	jobRoutes.HandleFunc("/{id}", jobHandler.GetJobByID).Methods("GET")
+
+	// Update job (partial update)
+	jobRoutes.HandleFunc("/{id}", jobHandler.UpdateJob).Methods("PATCH")
+
+	// Delete job
+	jobRoutes.HandleFunc("/{id}", jobHandler.DeleteJob).Methods("DELETE")
 }
 
 func (r *Router) Run(addr string, router *mux.Router) error {

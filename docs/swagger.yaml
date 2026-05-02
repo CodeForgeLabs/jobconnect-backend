@@ -12,6 +12,88 @@ definitions:
     - AvailabilityPartTime
     - AvailabilityContract
     - AvailabilityNotAvailable
+  domain.ExperienceLevel:
+    enum:
+    - ENTRY
+    - INTERMEDIATE
+    - SENIOR
+    type: string
+    x-enum-varnames:
+    - ExpEntry
+    - ExpIntermediate
+    - ExpSenior
+  domain.Job:
+    properties:
+      applications_count:
+        type: integer
+      budget:
+        description: fixed job fields
+        type: number
+      category:
+        type: string
+      company_name:
+        description: company / private
+        type: string
+      created_at:
+        type: string
+      created_by:
+        description: relationships
+        type: integer
+      deadline:
+        type: string
+      description:
+        type: string
+      experience_level:
+        $ref: '#/definitions/domain.ExperienceLevel'
+      hourly_rate:
+        description: hourly job fields
+        type: number
+      id:
+        type: integer
+      is_private:
+        type: boolean
+      job_type:
+        allOf:
+        - $ref: '#/definitions/domain.JobType'
+        description: classification
+      location:
+        description: location (only for onsite/hybrid)
+        type: string
+      max_weekly_hours:
+        type: integer
+      skills:
+        description: skills (simple version)
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/domain.JobStatus'
+        description: status + tracking
+      title:
+        description: core info
+        type: string
+      updated_at:
+        type: string
+      work_mode:
+        $ref: '#/definitions/domain.WorkMode'
+    type: object
+  domain.JobStatus:
+    enum:
+    - OPEN
+    - CLOSED
+    - DRAFT
+    type: string
+    x-enum-varnames:
+    - StatusOpen
+    - StatusClosed
+    - StatusDraft
+  domain.JobType:
+    enum:
+    - HOURLY
+    - FIXED
+    type: string
+    x-enum-varnames:
+    - JobTypeHourly
+    - JobTypeFixed
   domain.Role:
     enum:
     - CLIENT
@@ -59,6 +141,47 @@ definitions:
       updated_at:
         type: string
     type: object
+  domain.WorkMode:
+    enum:
+    - REMOTE
+    - ONSITE
+    - HYBRID
+    type: string
+    x-enum-varnames:
+    - WorkModeRemote
+    - WorkModeOnsite
+    - WorkModeHybrid
+  handlers.CreateJobRequest:
+    properties:
+      budget:
+        type: number
+      category:
+        type: string
+      company_name:
+        type: string
+      description:
+        type: string
+      experience_level:
+        type: string
+      hourly_rate:
+        type: number
+      is_private:
+        type: boolean
+      job_type:
+        type: string
+      location:
+        type: string
+      max_weekly_hours:
+        type: integer
+      skills:
+        items:
+          type: string
+        type: array
+      title:
+        type: string
+      work_mode:
+        type: string
+    type: object
   handlers.CreateUserRequest:
     properties:
       email:
@@ -77,6 +200,37 @@ definitions:
       email:
         type: string
       password:
+        type: string
+    type: object
+  handlers.UpdateJobRequest:
+    properties:
+      budget:
+        type: number
+      category:
+        type: string
+      company_name:
+        type: string
+      description:
+        type: string
+      experience_level:
+        type: string
+      hourly_rate:
+        type: number
+      is_private:
+        type: boolean
+      job_type:
+        type: string
+      location:
+        type: string
+      max_weekly_hours:
+        type: integer
+      skills:
+        items:
+          type: string
+        type: array
+      title:
+        type: string
+      work_mode:
         type: string
     type: object
   handlers.UpdateUserRequest:
@@ -117,6 +271,125 @@ info:
   title: Job Connect API
   version: "1.0"
 paths:
+  /jobs:
+    get:
+      parameters:
+      - description: Title
+        in: query
+        name: title
+        type: string
+      - description: Category
+        in: query
+        name: category
+        type: string
+      - description: Job Type
+        in: query
+        name: job_type
+        type: string
+      - description: Work Mode
+        in: query
+        name: work_mode
+        type: string
+      - description: Experience Level
+        in: query
+        name: experience_level
+        type: string
+      - description: Minimum Budget
+        in: query
+        name: budget_min
+        type: number
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/domain.Job'
+            type: array
+      summary: List jobs with filters
+      tags:
+      - Jobs
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Create Job
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateJobRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Job'
+      summary: Create job
+      tags:
+      - Jobs
+  /jobs/{id}:
+    delete:
+      parameters:
+      - description: Job ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Delete job
+      tags:
+      - Jobs
+    get:
+      parameters:
+      - description: Job ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Job'
+      summary: Get job by ID
+      tags:
+      - Jobs
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Job ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Update Job
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateJobRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Job'
+      summary: Update job
+      tags:
+      - Jobs
   /users/email:
     get:
       description: Retrieve user profile using email

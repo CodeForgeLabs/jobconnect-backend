@@ -9,6 +9,189 @@
     "host": "localhost:8080",
     "basePath": "/api/v1",
     "paths": {
+        "/jobs": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Jobs"
+                ],
+                "summary": "List jobs with filters",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Title",
+                        "name": "title",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Job Type",
+                        "name": "job_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Work Mode",
+                        "name": "work_mode",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Experience Level",
+                        "name": "experience_level",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Minimum Budget",
+                        "name": "budget_min",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/domain.Job"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Jobs"
+                ],
+                "summary": "Create job",
+                "parameters": [
+                    {
+                        "description": "Create Job",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CreateJobRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Job"
+                        }
+                    }
+                }
+            }
+        },
+        "/jobs/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Jobs"
+                ],
+                "summary": "Get job by ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Job ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Job"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Jobs"
+                ],
+                "summary": "Delete job",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Job ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Jobs"
+                ],
+                "summary": "Update job",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Job ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Update Job",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.UpdateJobRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Job"
+                        }
+                    }
+                }
+            }
+        },
         "/users/email": {
             "get": {
                 "description": "Retrieve user profile using email",
@@ -280,6 +463,125 @@
                 "AvailabilityNotAvailable"
             ]
         },
+        "domain.ExperienceLevel": {
+            "type": "string",
+            "enum": [
+                "ENTRY",
+                "INTERMEDIATE",
+                "SENIOR"
+            ],
+            "x-enum-varnames": [
+                "ExpEntry",
+                "ExpIntermediate",
+                "ExpSenior"
+            ]
+        },
+        "domain.Job": {
+            "type": "object",
+            "properties": {
+                "applications_count": {
+                    "type": "integer"
+                },
+                "budget": {
+                    "description": "fixed job fields",
+                    "type": "number"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "company_name": {
+                    "description": "company / private",
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "description": "relationships",
+                    "type": "integer"
+                },
+                "deadline": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "experience_level": {
+                    "$ref": "#/definitions/domain.ExperienceLevel"
+                },
+                "hourly_rate": {
+                    "description": "hourly job fields",
+                    "type": "number"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_private": {
+                    "type": "boolean"
+                },
+                "job_type": {
+                    "description": "classification",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/domain.JobType"
+                        }
+                    ]
+                },
+                "location": {
+                    "description": "location (only for onsite/hybrid)",
+                    "type": "string"
+                },
+                "max_weekly_hours": {
+                    "type": "integer"
+                },
+                "skills": {
+                    "description": "skills (simple version)",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "status + tracking",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/domain.JobStatus"
+                        }
+                    ]
+                },
+                "title": {
+                    "description": "core info",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "work_mode": {
+                    "$ref": "#/definitions/domain.WorkMode"
+                }
+            }
+        },
+        "domain.JobStatus": {
+            "type": "string",
+            "enum": [
+                "OPEN",
+                "CLOSED",
+                "DRAFT"
+            ],
+            "x-enum-varnames": [
+                "StatusOpen",
+                "StatusClosed",
+                "StatusDraft"
+            ]
+        },
+        "domain.JobType": {
+            "type": "string",
+            "enum": [
+                "HOURLY",
+                "FIXED"
+            ],
+            "x-enum-varnames": [
+                "JobTypeHourly",
+                "JobTypeFixed"
+            ]
+        },
         "domain.Role": {
             "type": "string",
             "enum": [
@@ -350,6 +652,66 @@
                 }
             }
         },
+        "domain.WorkMode": {
+            "type": "string",
+            "enum": [
+                "REMOTE",
+                "ONSITE",
+                "HYBRID"
+            ],
+            "x-enum-varnames": [
+                "WorkModeRemote",
+                "WorkModeOnsite",
+                "WorkModeHybrid"
+            ]
+        },
+        "handlers.CreateJobRequest": {
+            "type": "object",
+            "properties": {
+                "budget": {
+                    "type": "number"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "company_name": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "experience_level": {
+                    "type": "string"
+                },
+                "hourly_rate": {
+                    "type": "number"
+                },
+                "is_private": {
+                    "type": "boolean"
+                },
+                "job_type": {
+                    "type": "string"
+                },
+                "location": {
+                    "type": "string"
+                },
+                "max_weekly_hours": {
+                    "type": "integer"
+                },
+                "skills": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "title": {
+                    "type": "string"
+                },
+                "work_mode": {
+                    "type": "string"
+                }
+            }
+        },
         "handlers.CreateUserRequest": {
             "type": "object",
             "properties": {
@@ -377,6 +739,53 @@
                     "type": "string"
                 },
                 "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.UpdateJobRequest": {
+            "type": "object",
+            "properties": {
+                "budget": {
+                    "type": "number"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "company_name": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "experience_level": {
+                    "type": "string"
+                },
+                "hourly_rate": {
+                    "type": "number"
+                },
+                "is_private": {
+                    "type": "boolean"
+                },
+                "job_type": {
+                    "type": "string"
+                },
+                "location": {
+                    "type": "string"
+                },
+                "max_weekly_hours": {
+                    "type": "integer"
+                },
+                "skills": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "title": {
+                    "type": "string"
+                },
+                "work_mode": {
                     "type": "string"
                 }
             }
