@@ -12,6 +12,7 @@ func Migrate(db *gorm.DB) error {
 		domain.User{},
 		domain.Job{},
 		domain.Milestone{},
+		domain.Proposal{},
 	)
 
 	if err != nil {
