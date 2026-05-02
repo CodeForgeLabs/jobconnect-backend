@@ -8,6 +8,7 @@ const (
 	ProposalPending  ProposalStatus = "PENDING"
 	ProposalInvited  ProposalStatus = "INVITED"
 	ProposalRejected ProposalStatus = "REJECTED"
+	ProposalHired    ProposalStatus = "HIRED"
 )
 
 type Proposal struct {
@@ -46,4 +47,5 @@ type ProposalRepository interface {
 	UpdateProposal(proposal *Proposal) error
 	DeleteProposal(id uint) error
 	ListProposalsByJobID(jobID uint) ([]*ProposalWithUserResponse, error)
+	ListMyProposals(userID uint) ([]*Proposal, error)
 }

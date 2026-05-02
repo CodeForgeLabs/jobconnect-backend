@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"fmt"
 	"job-connect/domain"
 
 	"gorm.io/gorm"
@@ -78,4 +79,11 @@ func (r *ProposalRepository) UpdateProposal(proposal *domain.Proposal) error {
 
 func (r *ProposalRepository) DeleteProposal(id uint) error {
 	return r.db.Delete(&domain.Proposal{}, id).Error
+}
+
+func (r *ProposalRepository) ListMyProposals(userID uint) ([]*domain.Proposal, error) {
+	var proposals []*domain.Proposal
+	err := r.db.Where("sender_id = ?", userID).Find(&proposals).Error
+	fmt.Println("error", err)
+	return proposals, err
 }

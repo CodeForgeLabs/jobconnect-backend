@@ -29,3 +29,7 @@ func (j *JobUsecase) DeleteJob(id uint) error {
 func (j *JobUsecase) ListJobs(filter domain.JobFilter) ([]*domain.Job, error) {
 	return j.jobRepo.ListJobs(filter)
 }
+
+func (j *JobUsecase) ListMyJobs(userID uint) ([]*domain.Job, error) {
+	return j.jobRepo.ListMyJobs(userID)
+}

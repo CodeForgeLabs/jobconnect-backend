@@ -142,3 +142,18 @@ func (r *JobRepository) ListJobs(filter domain.JobFilter) ([]*domain.Job, error)
 
 	return jobs, nil
 }
+
+func (r *JobRepository) ListMyJobs(userID uint) ([]*domain.Job, error) {
+	var jobs []*domain.Job
+
+	// retrive all my jobs i posted so far
+	err := r.db.Where("created_by = ?", userID).
+		Preload("Milestones").
+		Order("created_at DESC").
+		Find(&jobs).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return jobs, nil
+}

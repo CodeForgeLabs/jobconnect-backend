@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"job-connect/auth"
 	"job-connect/domain"
 	usecase "job-connect/usecase"
 	"net/http"
@@ -245,5 +246,35 @@ func (h *ProposalHandler) DeleteProposal(w http.ResponseWriter, r *http.Request)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"message": "proposal deleted",
+	})
+}
+
+// ListMyProposals godoc
+// @Summary List my proposals
+// @Description List all proposals submitted by the authenticated user
+// @Tags Proposals
+// @Accept json
+// @Produce json
+// @Success 200 {object} ListProposalsResponse
+// @Failure 401 {object} GenericMessageResponse
+// @Failure 500 {object} GenericMessageResponse
+// @Router /proposals/mine [get]
+func (h *ProposalHandler) ListMyProposals(w http.ResponseWriter, r *http.Request) {
+	userID, _, err := auth.GetUserFromToken(r)
+	println(userID)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	proposals, err := h.propUsecase.ListMyProposals(parseUint(userID))
+	if err != nil {
+		http.Error(w, "failed to list proposals", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"proposals": proposals,
 	})
 }

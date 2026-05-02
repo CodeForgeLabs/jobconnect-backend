@@ -76,6 +76,7 @@ func (r *Router) RegisterRoute() {
 	// Create job
 	jobRoutes.HandleFunc("", jobHandler.CreateJob).Methods("POST")
 	jobRoutes.HandleFunc("", jobHandler.ListJobs).Methods("GET")
+	jobRoutes.HandleFunc("/mine", jobHandler.ListMyJobs).Methods("GET")
 	jobRoutes.HandleFunc("/{id}", jobHandler.GetJobByID).Methods("GET")
 	jobRoutes.HandleFunc("/{id}", jobHandler.UpdateJob).Methods("PATCH")
 	jobRoutes.HandleFunc("/{id}", jobHandler.DeleteJob).Methods("DELETE")
@@ -93,6 +94,7 @@ func (r *Router) RegisterRoute() {
 	// normal proposal routes
 	proposalRoutes.HandleFunc("", proposalHandler.CreateProposal).Methods("POST")
 	proposalRoutes.HandleFunc("/jobs", proposalHandler.ListProposalsByJobID).Methods("POST")
+	proposalRoutes.HandleFunc("/mine", proposalHandler.ListMyProposals).Methods("GET")
 	proposalRoutes.HandleFunc("/{id}", proposalHandler.GetProposalByID).Methods("GET")
 	proposalRoutes.HandleFunc("/{id}", proposalHandler.UpdateProposal).Methods("PATCH")
 	proposalRoutes.HandleFunc("/{id}", proposalHandler.DeleteProposal).Methods("DELETE")
@@ -105,6 +107,27 @@ func (r *Router) RegisterRoute() {
 	portfolioRoutes.HandleFunc("", portfolioHandler.CreatePortfolioItem).Methods("POST")
 	portfolioRoutes.HandleFunc("/{id}", portfolioHandler.UpdatePortfolioItem).Methods("PATCH")
 	portfolioRoutes.HandleFunc("/{id}", portfolioHandler.DeletePortfolioItem).Methods("DELETE")
+
+	// =========================
+	// CONTRACT MODULE
+	// =========================
+	contractRepo := repository.NewContractRepository(db)
+	contractUsecase := usecase.NewContractUsecase(contractRepo)
+	contractHandler := handler.NewContractHandler(contractUsecase)
+
+	contractRoutes := api.PathPrefix("/contracts").Subrouter()
+
+	contractRoutes.HandleFunc("", contractHandler.CreateContract).Methods("POST")
+	contractRoutes.HandleFunc("/mine", contractHandler.GetMyContracts).Methods("GET")
+	contractRoutes.HandleFunc("/{id}", contractHandler.GetContractByID).Methods("GET")
+	contractRoutes.HandleFunc("/milestone/submit", contractHandler.SubmitMilestone).Methods("POST")
+	contractRoutes.HandleFunc("/milestone/{milestone_id}/status", contractHandler.ModifyMilestoneStatus).Methods("PATCH")
+	contractRoutes.HandleFunc("/{contract_id}/status", contractHandler.ModifyContractStatus).Methods("PATCH")
+	contractRoutes.HandleFunc("/work-session/start", contractHandler.StartWorkSession).Methods("POST")
+	contractRoutes.HandleFunc("/work-session/end", contractHandler.EndWorkSession).Methods("POST")
+	contractRoutes.HandleFunc("/work-session/time-logs", contractHandler.FetchTimeLogs).Methods("POST")
+	contractRoutes.HandleFunc("/work-session/time-elapsed", contractHandler.FetchTimeElapsed).Methods("POST")
+	contractRoutes.HandleFunc("/work-session/weekly-hours", contractHandler.FetchWeeklyHours).Methods("POST")
 }
 
 func (r *Router) Run(addr string, router *mux.Router) error {
