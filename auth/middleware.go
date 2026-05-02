@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"os"
 
