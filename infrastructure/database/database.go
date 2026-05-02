@@ -24,13 +24,13 @@ type DatabaseConfig struct {
 func LoadDatabaseConfig() DatabaseConfig {
 
 	return DatabaseConfig{
-		Host:     getEnv("DB_HOST", "localhost"),
-		Port:     getEnv("DB_PORT", "5432"),
-		User:     getEnv("DB_USER", "postgres"),
-		Password: getEnv("DB_PASSWORD", ""),
-		DBName:   getEnv("DB_NAME", "jobconnect-app"),
-		SSLMode:  getEnv("DB_SSL_MODE", "disable"),
-		TimeZone: getEnv("DB_TIMEZONE", "UTC"),
+		Host:     GetEnv("DB_HOST", "localhost"),
+		Port:     GetEnv("DB_PORT", "5432"),
+		User:     GetEnv("DB_USER", "postgres"),
+		Password: GetEnv("DB_PASSWORD", ""),
+		DBName:   GetEnv("DB_NAME", "jobconnect-app"),
+		SSLMode:  GetEnv("DB_SSL_MODE", "disable"),
+		TimeZone: GetEnv("DB_TIMEZONE", "UTC"),
 	}
 }
 
@@ -52,7 +52,7 @@ func NewDatabase() (*gorm.DB, error) {
 	return db, nil
 }
 
-func getEnv(key, defaultValue string) string {
+func GetEnv(key, defaultValue string) string {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal(err)

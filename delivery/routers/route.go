@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"job-connect/chapa"
 	handler "job-connect/delivery/handlers"
 	"job-connect/delivery/ws"
 	database "job-connect/infrastructure/database"
@@ -148,6 +149,25 @@ func (r *Router) RegisterRoute() {
 	messageRoutes.HandleFunc("", messageHandler.GetMessagesByConversationID).Methods("GET")
 	messageRoutes.HandleFunc("/conversations", messageHandler.GetConversationsByUserID).Methods("GET")
 	messageRoutes.HandleFunc("/seen", messageHandler.MarkMessageAsSeen).Methods("POST")
+
+	// =========================
+	// WALLET MODULE
+	// =========================
+	chapaClient := chapa.NewClient(
+		database.GetEnv("CHAPA_SECRET_KEY", ""),
+		database.GetEnv("CHAPA_BASE_URL", "https://api.chapa.co/v1"),
+	)
+	walletRepo := repository.NewWalletRepo(db)
+	walletUsecase := usecase.NewWalletUsecase(walletRepo)
+	walletHandler := handler.NewWalletHandler(walletUsecase, chapaClient)
+
+	walletRoutes := api.PathPrefix("/wallet").Subrouter()
+
+	walletRoutes.HandleFunc("/balance", walletHandler.GetOrCreateWallet).Methods("GET")
+	walletRoutes.HandleFunc("/transaction", walletHandler.CreateTransaction).Methods("POST")
+	walletRoutes.HandleFunc("/transaction/update", walletHandler.UpdateTransactionStatus).Methods("GET")
+	walletRoutes.HandleFunc("/transactions", walletHandler.FetchTransactions).Methods("GET")
+
 }
 
 func (r *Router) Run(addr string, router *mux.Router) error {
