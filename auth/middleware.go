@@ -61,10 +61,8 @@ func RoleMiddleware(requiredRoles ...string) func(http.Handler) http.Handler {
 }
 
 func getEnv(key, defaultValue string) string {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal(err)
-	}
+	_ = godotenv.Load()
+
 	value := os.Getenv(key)
 	if value == "" {
 		return defaultValue
