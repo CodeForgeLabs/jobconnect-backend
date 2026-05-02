@@ -182,6 +182,23 @@ definitions:
       work_mode:
         type: string
     type: object
+  handlers.CreatePortfolioItemRequest:
+    properties:
+      description:
+        type: string
+      end_date:
+        type: string
+      image_url:
+        type: string
+      start_date:
+        type: string
+      tech_stack:
+        items:
+          type: string
+        type: array
+      title:
+        type: string
+    type: object
   handlers.CreateUserRequest:
     properties:
       email:
@@ -201,6 +218,31 @@ definitions:
         type: string
       password:
         type: string
+    type: object
+  handlers.PortfolioItemResponse:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      end_date:
+        type: string
+      id:
+        type: integer
+      image_url:
+        type: string
+      start_date:
+        type: string
+      tech_stack:
+        items:
+          type: string
+        type: array
+      title:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: integer
     type: object
   handlers.UpdateJobRequest:
     properties:
@@ -228,9 +270,28 @@ definitions:
         items:
           type: string
         type: array
+      status:
+        type: string
       title:
         type: string
       work_mode:
+        type: string
+    type: object
+  handlers.UpdatePortfolioItemRequest:
+    properties:
+      description:
+        type: string
+      end_date:
+        type: string
+      image_url:
+        type: string
+      start_date:
+        type: string
+      tech_stack:
+        items:
+          type: string
+        type: array
+      title:
         type: string
     type: object
   handlers.UpdateUserRequest:
@@ -390,6 +451,140 @@ paths:
       summary: Update job
       tags:
       - Jobs
+  /portfolio:
+    post:
+      consumes:
+      - application/json
+      description: Create a portfolio gallery item for the current freelancer
+      parameters:
+      - description: Create portfolio item
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreatePortfolioItemRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PortfolioItemResponse'
+        "400":
+          description: Invalid request payload
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+      summary: Create portfolio item
+      tags:
+      - Portfolio
+  /portfolio/{id}:
+    delete:
+      description: Delete a portfolio gallery item owned by the current freelancer
+      parameters:
+      - description: Portfolio Item ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+        "404":
+          description: Portfolio item not found
+          schema:
+            type: string
+      summary: Delete portfolio item
+      tags:
+      - Portfolio
+    patch:
+      consumes:
+      - application/json
+      description: Update a portfolio gallery item owned by the current freelancer
+      parameters:
+      - description: Portfolio Item ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Update portfolio item
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdatePortfolioItemRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PortfolioItemResponse'
+        "400":
+          description: Invalid request payload
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+        "404":
+          description: Portfolio item not found
+          schema:
+            type: string
+      summary: Update portfolio item
+      tags:
+      - Portfolio
+  /users/{id}/portfolio:
+    get:
+      description: Retrieve portfolio gallery items for a freelancer
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handlers.PortfolioItemResponse'
+            type: array
+        "404":
+          description: User not found
+          schema:
+            type: string
+      summary: Get public portfolio gallery
+      tags:
+      - Portfolio
   /users/email:
     get:
       description: Retrieve user profile using email

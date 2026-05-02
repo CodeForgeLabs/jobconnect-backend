@@ -39,6 +39,9 @@ func (r *Router) RegisterRoute() {
 	userRepo := repository.NewUserRepository(db)
 	userUsecase := usecase.NewUserUsecase(userRepo)
 	userHandler := handler.NewUserHandler(userUsecase)
+	portfolioRepo := repository.NewPortfolioRepository(db)
+	portfolioUsecase := usecase.NewPortfolioUsecase(portfolioRepo)
+	portfolioHandler := handler.NewPortfolioHandler(portfolioUsecase, userUsecase)
 	// =========================
 	// BASE API
 	// =========================
@@ -50,6 +53,7 @@ func (r *Router) RegisterRoute() {
 	userRoutes.HandleFunc("/register", userHandler.CreateUser).Methods("POST")
 	userRoutes.HandleFunc("/login", userHandler.Login).Methods("POST")
 	userRoutes.HandleFunc("/email", userHandler.GetUserByEmail).Methods("GET")
+	userRoutes.HandleFunc("/{id}/portfolio", portfolioHandler.GetPortfolioByUserID).Methods("GET")
 
 	// Protected routes
 	userRoutes.HandleFunc("/me", userHandler.GetUserByID).Methods("GET")
@@ -83,6 +87,15 @@ func (r *Router) RegisterRoute() {
 
 	// Delete job
 	jobRoutes.HandleFunc("/{id}", jobHandler.DeleteJob).Methods("DELETE")
+
+	// =========================
+	// PORTFOLIO MODULE
+	// =========================
+	portfolioRoutes := api.PathPrefix("/portfolio").Subrouter()
+
+	portfolioRoutes.HandleFunc("", portfolioHandler.CreatePortfolioItem).Methods("POST")
+	portfolioRoutes.HandleFunc("/{id}", portfolioHandler.UpdatePortfolioItem).Methods("PATCH")
+	portfolioRoutes.HandleFunc("/{id}", portfolioHandler.DeletePortfolioItem).Methods("DELETE")
 }
 
 func (r *Router) Run(addr string, router *mux.Router) error {
