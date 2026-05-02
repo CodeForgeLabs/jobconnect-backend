@@ -24,11 +24,17 @@ type CreateJobRequest struct {
 	MaxWeeklyHours *int     `json:"max_weekly_hours,omitempty"`
 	Budget         *float64 `json:"budget,omitempty"`
 
-	Location    string `json:"location,omitempty"`
-	CompanyName string `json:"company_name,omitempty"`
-	IsPrivate   bool   `json:"is_private"`
+	Location    string             `json:"location,omitempty"`
+	CompanyName string             `json:"company_name,omitempty"`
+	IsPrivate   bool               `json:"is_private"`
+	Milestones  []MilestoneRequest `json:"milestones,omitempty"`
 
 	Skills []string `json:"skills"`
+}
+
+type MilestoneRequest struct {
+	Description string  `json:"description"`
+	Amount      float64 `json:"amount"`
 }
 
 type UpdateJobRequest struct {
@@ -79,13 +85,21 @@ func (h *JobHandler) CreateJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	jobType := domain.ParseJobType(req.JobType)
+
+	// 🚨 VALIDATION: FIXED JOB MUST HAVE MILESTONES
+	if jobType == domain.JobTypeFixed && len(req.Milestones) == 0 {
+		http.Error(w, "fixed jobs require milestones", http.StatusBadRequest)
+		return
+	}
+
 	job := &domain.Job{
 		Title:           req.Title,
 		Description:     req.Description,
 		Category:        req.Category,
-		JobType:         domain.JobType(req.JobType),
-		ExperienceLevel: domain.ExperienceLevel(req.ExperienceLevel),
-		WorkMode:        domain.WorkMode(req.WorkMode),
+		JobType:         jobType,
+		ExperienceLevel: domain.ParseExperienceLevel(req.ExperienceLevel),
+		WorkMode:        domain.ParseWorkMode(req.WorkMode),
 		HourlyRate:      req.HourlyRate,
 		MaxWeeklyHours:  req.MaxWeeklyHours,
 		Budget:          req.Budget,
@@ -96,10 +110,21 @@ func (h *JobHandler) CreateJob(w http.ResponseWriter, r *http.Request) {
 		Skills:          strings.Join(req.Skills, ","),
 	}
 
+	// ⭐ attach milestones
+	if jobType == domain.JobTypeFixed {
+		for _, m := range req.Milestones {
+			job.Milestones = append(job.Milestones, domain.Milestone{
+				Description: m.Description,
+				Amount:      m.Amount,
+			})
+		}
+	}
+
 	if err := h.jobUsecase.CreateJob(job); err != nil {
 		http.Error(w, "failed to create job", http.StatusInternalServerError)
 		return
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"message": "job created",
