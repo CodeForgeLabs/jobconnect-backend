@@ -11,6 +11,7 @@ func Migrate(db *gorm.DB) error {
 	err := db.AutoMigrate(
 		domain.User{},
 		domain.Job{},
+		domain.PortfolioItem{},
 		domain.Milestone{},
 	)
 
