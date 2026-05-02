@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	handler "job-connect/delivery/handlers"
+	"job-connect/delivery/ws"
 	database "job-connect/infrastructure/database"
 	"job-connect/infrastructure/repository"
 	"job-connect/usecase"
@@ -128,6 +129,25 @@ func (r *Router) RegisterRoute() {
 	contractRoutes.HandleFunc("/work-session/time-logs", contractHandler.FetchTimeLogs).Methods("POST")
 	contractRoutes.HandleFunc("/work-session/time-elapsed", contractHandler.FetchTimeElapsed).Methods("POST")
 	contractRoutes.HandleFunc("/work-session/weekly-hours", contractHandler.FetchWeeklyHours).Methods("POST")
+
+	// =========================
+	// MESSAGE MODULE
+	// =========================
+	hub := ws.NewHub()
+
+	r.route.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		ws.ServeWS(hub, w, r)
+	})
+	messageRepo := repository.NewMessageRepository(db, hub)
+	messageUsecase := usecase.NewMessageUsecase(messageRepo)
+	messageHandler := handler.NewMessageHandler(messageUsecase)
+
+	messageRoutes := api.PathPrefix("/messages").Subrouter()
+
+	messageRoutes.HandleFunc("", messageHandler.CreateMessage).Methods("POST")
+	messageRoutes.HandleFunc("", messageHandler.GetMessagesByConversationID).Methods("GET")
+	messageRoutes.HandleFunc("/conversations", messageHandler.GetConversationsByUserID).Methods("GET")
+	messageRoutes.HandleFunc("/seen", messageHandler.MarkMessageAsSeen).Methods("POST")
 }
 
 func (r *Router) Run(addr string, router *mux.Router) error {
