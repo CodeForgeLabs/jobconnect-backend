@@ -4,8 +4,6 @@ import (
 	"context"
 	"net/http"
 	"os"
-
-	"github.com/joho/godotenv"
 )
 
 type JWTConfig struct {
@@ -60,7 +58,7 @@ func RoleMiddleware(requiredRoles ...string) func(http.Handler) http.Handler {
 }
 
 func getEnv(key, defaultValue string) string {
-	_ = godotenv.Load()
+	// _ = godotenv.Load()
 
 	value := os.Getenv(key)
 	if value == "" {
