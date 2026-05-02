@@ -75,18 +75,27 @@ func (r *Router) RegisterRoute() {
 
 	// Create job
 	jobRoutes.HandleFunc("", jobHandler.CreateJob).Methods("POST")
-
-	// List jobs (with filters)
 	jobRoutes.HandleFunc("", jobHandler.ListJobs).Methods("GET")
-
-	// Get job by ID
 	jobRoutes.HandleFunc("/{id}", jobHandler.GetJobByID).Methods("GET")
-
-	// Update job (partial update)
 	jobRoutes.HandleFunc("/{id}", jobHandler.UpdateJob).Methods("PATCH")
-
-	// Delete job
 	jobRoutes.HandleFunc("/{id}", jobHandler.DeleteJob).Methods("DELETE")
+
+	// =========================
+	// PROPOSAL MODULE
+	// =========================
+
+	proposalRepo := repository.NewProposalRepository(db)
+	proposalUsecase := usecase.NewProposalUsecase(proposalRepo)
+	proposalHandler := handler.NewProposalHandler(proposalUsecase)
+
+	proposalRoutes := api.PathPrefix("/proposals").Subrouter()
+
+	// normal proposal routes
+	proposalRoutes.HandleFunc("", proposalHandler.CreateProposal).Methods("POST")
+	proposalRoutes.HandleFunc("/jobs", proposalHandler.ListProposalsByJobID).Methods("POST")
+	proposalRoutes.HandleFunc("/{id}", proposalHandler.GetProposalByID).Methods("GET")
+	proposalRoutes.HandleFunc("/{id}", proposalHandler.UpdateProposal).Methods("PATCH")
+	proposalRoutes.HandleFunc("/{id}", proposalHandler.DeleteProposal).Methods("DELETE")
 
 	// =========================
 	// PORTFOLIO MODULE
