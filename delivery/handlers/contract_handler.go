@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"job-connect/auth"
 	"job-connect/domain"
 	usecase "job-connect/usecase"
@@ -9,6 +10,7 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
+	"gorm.io/gorm"
 )
 
 type ContractHandler struct {
@@ -38,14 +40,37 @@ func NewContractHandler(contractUsecase *usecase.ContractUsecase) *ContractHandl
 // @Failure 500 {object} GenericMessageResponse
 // @Router /contracts [post]
 func (h *ContractHandler) CreateContract(w http.ResponseWriter, r *http.Request) {
+	userID, userRole, err := auth.GetUserFromToken(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if userRole != string(domain.RoleClient) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
 	var req CreateContractRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	if err := h.contractUsecase.CreateContract(req.JobID, req.FreelancerID); err != nil {
-		http.Error(w, "failed to create contract", http.StatusInternalServerError)
+	if err := h.contractUsecase.CreateContract(req.JobID, req.FreelancerID, parseUint(userID)); err != nil {
+		switch err {
+		case domain.ErrForbidden:
+			http.Error(w, "forbidden", http.StatusForbidden)
+		case domain.ErrConflict:
+			http.Error(w, "contract already exists", http.StatusConflict)
+		case domain.ErrInvalidState:
+			http.Error(w, "proposal is not eligible for contract creation", http.StatusBadRequest)
+		default:
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				http.Error(w, "job or proposal not found", http.StatusNotFound)
+				return
+			}
+			http.Error(w, "failed to create contract", http.StatusInternalServerError)
+		}
 		return
 	}
 
@@ -197,6 +222,12 @@ func (h *ContractHandler) ModifyMilestoneStatus(w http.ResponseWriter, r *http.R
 // @Failure 500 {object} GenericMessageResponse
 // @Router /contracts/{contract_id}/status [patch]
 func (h *ContractHandler) ModifyContractStatus(w http.ResponseWriter, r *http.Request) {
+	userID, _, err := auth.GetUserFromToken(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	contractIDStr := mux.Vars(r)["contract_id"]
 	contractID, err := strconv.Atoi(contractIDStr)
 	if err != nil {
@@ -216,8 +247,19 @@ func (h *ContractHandler) ModifyContractStatus(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	if err := h.contractUsecase.ModifyContractStatus(uint(contractID), domain.ContractStatus(newStatus)); err != nil {
-		http.Error(w, "failed to modify contract status", http.StatusInternalServerError)
+	if err := h.contractUsecase.ModifyContractStatus(uint(contractID), parseUint(userID), domain.ContractStatus(newStatus)); err != nil {
+		switch err {
+		case domain.ErrForbidden:
+			http.Error(w, "forbidden", http.StatusForbidden)
+		case domain.ErrInvalidState:
+			http.Error(w, "completed contracts cannot be reopened", http.StatusBadRequest)
+		default:
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				http.Error(w, "contract not found", http.StatusNotFound)
+				return
+			}
+			http.Error(w, "failed to modify contract status", http.StatusInternalServerError)
+		}
 		return
 	}
 

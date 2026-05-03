@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"errors"
 	"fmt"
 	"job-connect/domain"
 	"strconv"
@@ -17,7 +18,7 @@ func NewContractRepository(db *gorm.DB) *ContractRepository {
 	return &ContractRepository{db: db}
 }
 
-func (r *ContractRepository) CreateContract(jobId, freelancerId string) error {
+func (r *ContractRepository) CreateContract(jobId, freelancerId string, clientID uint) error {
 	// parse IDs
 	jobIDUint, err := strconv.ParseUint(jobId, 10, 64)
 	if err != nil {
@@ -40,14 +41,31 @@ func (r *ContractRepository) CreateContract(jobId, freelancerId string) error {
 		return fmt.Errorf("job not found: %w", err)
 	}
 
+	if job.CreatedBy != clientID {
+		return domain.ErrForbidden
+	}
+
 	// =========================
-	// FETCH ACCEPTED PROPOSAL
+	// FETCH PROPOSAL
 	// =========================
 	var proposal domain.Proposal
 	if err := r.db.
 		Where("job_id = ? AND sender_id = ?", jobID, freelancerID).
 		First(&proposal).Error; err != nil {
 		return fmt.Errorf("proposal not found: %w", err)
+	}
+
+	if proposal.Status == domain.ProposalRejected {
+		return domain.ErrInvalidState
+	}
+
+	var existingContract domain.Contract
+	err = r.db.Where("job_id = ? OR proposal_id = ?", jobID, proposal.ID).First(&existingContract).Error
+	if err == nil {
+		return domain.ErrConflict
+	}
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
 	}
 
 	// =========================
@@ -147,7 +165,7 @@ func (r *ContractRepository) DeleteContract(id uint) error {
 }
 
 func (r *ContractRepository) GetMyContracts(userID uint) ([]*domain.MyContractResponse, error) {
-	var contracts []*domain.MyContractResponse
+	contracts := make([]*domain.MyContractResponse, 0)
 
 	err := r.db.
 		Table("contracts").
@@ -307,10 +325,30 @@ func (r *ContractRepository) ModifyStatus(milestoneId uint, newStatus domain.Con
 		Update("status", newStatus).Error
 }
 
-func (r *ContractRepository) ModifyContractStatus(contractId uint, newStatus domain.ContractStatus) error {
-	return r.db.Model(&domain.Contract{}).
-		Where("id = ?", contractId).
-		Update("status", newStatus).Error
+func (r *ContractRepository) ModifyContractStatus(contractId, actorUserID uint, newStatus domain.ContractStatus) error {
+	var contract domain.Contract
+	if err := r.db.First(&contract, contractId).Error; err != nil {
+		return err
+	}
+
+	if contract.ClientID != actorUserID {
+		return domain.ErrForbidden
+	}
+
+	if contract.Status == domain.ContractCompleted && newStatus != domain.ContractCompleted {
+		return domain.ErrInvalidState
+	}
+
+	updates := map[string]interface{}{
+		"status": newStatus,
+	}
+
+	if newStatus == domain.ContractCompleted && contract.EndDate == nil {
+		now := time.Now()
+		updates["end_date"] = &now
+	}
+
+	return r.db.Model(&contract).Updates(updates).Error
 }
 
 func (r *ContractRepository) StartWorkSession(contractId, freelancerId uint) error {

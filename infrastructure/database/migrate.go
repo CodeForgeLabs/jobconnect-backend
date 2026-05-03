@@ -21,6 +21,7 @@ func Migrate(db *gorm.DB) error {
 		domain.Conversation{},
 		domain.Wallet{},
 		domain.WalletTransaction{},
+		domain.Review{},
 	)
 
 	if err != nil {

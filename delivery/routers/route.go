@@ -44,6 +44,9 @@ func (r *Router) RegisterRoute() {
 	portfolioRepo := repository.NewPortfolioRepository(db)
 	portfolioUsecase := usecase.NewPortfolioUsecase(portfolioRepo)
 	portfolioHandler := handler.NewPortfolioHandler(portfolioUsecase, userUsecase)
+	reviewRepo := repository.NewReviewRepository(db)
+	reviewUsecase := usecase.NewReviewUsecase(reviewRepo)
+	reviewHandler := handler.NewReviewHandler(reviewUsecase, userUsecase)
 	// =========================
 	// BASE API
 	// =========================
@@ -56,6 +59,7 @@ func (r *Router) RegisterRoute() {
 	userRoutes.HandleFunc("/login", userHandler.Login).Methods("POST")
 	userRoutes.HandleFunc("/email", userHandler.GetUserByEmail).Methods("GET")
 	userRoutes.HandleFunc("/{id}/portfolio", portfolioHandler.GetPortfolioByUserID).Methods("GET")
+	userRoutes.HandleFunc("/{id}/reviews", reviewHandler.ListReviewsByFreelancerID).Methods("GET")
 
 	// Protected routes
 	userRoutes.HandleFunc("/me", userHandler.GetUserByID).Methods("GET")
@@ -100,6 +104,15 @@ func (r *Router) RegisterRoute() {
 	proposalRoutes.HandleFunc("/{id}", proposalHandler.GetProposalByID).Methods("GET")
 	proposalRoutes.HandleFunc("/{id}", proposalHandler.UpdateProposal).Methods("PATCH")
 	proposalRoutes.HandleFunc("/{id}", proposalHandler.DeleteProposal).Methods("DELETE")
+
+	// =========================
+	// REVIEW MODULE
+	// =========================
+	reviewRoutes := api.PathPrefix("/reviews").Subrouter()
+
+	reviewRoutes.HandleFunc("", reviewHandler.CreateReview).Methods("POST")
+	reviewRoutes.HandleFunc("/{id}", reviewHandler.UpdateReview).Methods("PATCH")
+	reviewRoutes.HandleFunc("/{id}/reply", reviewHandler.UpdateReviewReply).Methods("PATCH")
 
 	// =========================
 	// PORTFOLIO MODULE
