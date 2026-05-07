@@ -18,8 +18,8 @@ const (
 type Contract struct {
 	ID uint `gorm:"primaryKey" json:"id"`
 
-	JobID      uint `gorm:"not null;index" json:"job_id"`
-	ProposalID uint `gorm:"not null;index" json:"proposal_id"`
+	JobID      uint `gorm:"not null;uniqueIndex" json:"job_id"`
+	ProposalID uint `gorm:"not null;uniqueIndex" json:"proposal_id"`
 
 	ClientID     uint `gorm:"not null;index" json:"client_id"`
 	FreelancerID uint `gorm:"not null;index" json:"freelancer_id"`
@@ -183,12 +183,12 @@ type SubmitMilestoneRequest struct {
 	MilestoneProjectURL string `json:"milestone_project_url"`
 }
 type ContractRepository interface {
-	CreateContract(jobId, freelancerId string) error
+	CreateContract(jobId, freelancerId string, clientID uint) error
 	GetMyContracts(userID uint) ([]*MyContractResponse, error)
 	GetContractByID(id uint) (*MyContractResponse, error)
 	SubmitMilestone(request *SubmitMilestoneRequest) error
 	ModifyStatus(milestoneId uint, newStatus ContractMilestoneStatus) error
-	ModifyContractStatus(contractId uint, newStatus ContractStatus) error
+	ModifyContractStatus(contractId, actorUserID uint, newStatus ContractStatus) error
 
 	// log time for hourly contracts (not implemented yet)
 	StartWorkSession(contractId, freelancerId uint) error

@@ -20,9 +20,8 @@ func NewProposalHandler(propUsecase *usecase.ProposalUsecase) *ProposalHandler {
 }
 
 type CreateProposalRequest struct {
-	JobID        uint   `json:"job_id"`
-	FreelancerID uint   `json:"freelancer_id"`
-	CoverLetter  string `json:"cover_letter"`
+	JobID       uint   `json:"job_id"`
+	CoverLetter string `json:"cover_letter"`
 }
 
 // DTOs used for Swagger documentation
@@ -67,6 +66,16 @@ type UpdateProposalRequest struct {
 // @Failure 500 {object} GenericMessageResponse
 // @Router /proposals [post]
 func (h *ProposalHandler) CreateProposal(w http.ResponseWriter, r *http.Request) {
+	userID, userRole, err := auth.GetUserFromToken(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if userRole != string(domain.RoleFreelancer) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
 	var req CreateProposalRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request", http.StatusBadRequest)
@@ -75,7 +84,7 @@ func (h *ProposalHandler) CreateProposal(w http.ResponseWriter, r *http.Request)
 
 	proposal := &domain.Proposal{
 		JobID:       req.JobID,
-		SenderID:    req.FreelancerID,
+		SenderID:    parseUint(userID),
 		Description: req.CoverLetter,
 	}
 

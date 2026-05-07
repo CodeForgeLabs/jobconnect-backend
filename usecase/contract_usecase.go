@@ -10,8 +10,8 @@ func NewContractUsecase(contractRepo domain.ContractRepository) *ContractUsecase
 	return &ContractUsecase{contractRepo: contractRepo}
 }
 
-func (u *ContractUsecase) CreateContract(jobId, freelancerId string) error {
-	return u.contractRepo.CreateContract(jobId, freelancerId)
+func (u *ContractUsecase) CreateContract(jobId, freelancerId string, clientID uint) error {
+	return u.contractRepo.CreateContract(jobId, freelancerId, clientID)
 }
 
 func (u *ContractUsecase) GetContractByID(id uint) (*domain.MyContractResponse, error) {
@@ -29,8 +29,8 @@ func (u *ContractUsecase) ModifyMilestoneStatus(milestoneId uint, newStatus doma
 	return u.contractRepo.ModifyStatus(milestoneId, newStatus)
 }
 
-func (u *ContractUsecase) ModifyContractStatus(contractId uint, newStatus domain.ContractStatus) error {
-	return u.contractRepo.ModifyContractStatus(contractId, newStatus)
+func (u *ContractUsecase) ModifyContractStatus(contractId, actorUserID uint, newStatus domain.ContractStatus) error {
+	return u.contractRepo.ModifyContractStatus(contractId, actorUserID, newStatus)
 }
 
 func (u *ContractUsecase) StartWorkSession(contractId, freelancerId uint) error {
