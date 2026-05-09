@@ -23,10 +23,19 @@ import (
 func main() {
 	router := mux.NewRouter()
 
-	// Swagger dynamic config
-	docs.SwaggerInfo.Host = os.Getenv("HOST")
+	host := os.Getenv("HOST")
+
+	// Local development fallback
+	if host == "" {
+		host = "localhost:8080"
+		docs.SwaggerInfo.Schemes = []string{"http"}
+	} else {
+		docs.SwaggerInfo.Schemes = []string{"https"}
+	}
+
+	// Swagger config
+	docs.SwaggerInfo.Host = host
 	docs.SwaggerInfo.BasePath = "/api/v1"
-	docs.SwaggerInfo.Schemes = []string{"https"}
 
 	// Swagger route
 	router.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
