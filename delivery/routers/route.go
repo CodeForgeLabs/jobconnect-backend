@@ -12,6 +12,7 @@ import (
 	"job-connect/infrastructure/repository"
 	"job-connect/usecase"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
 
@@ -184,6 +185,31 @@ func (r *Router) RegisterRoute() {
 }
 
 func (r *Router) Run(addr string, router *mux.Router) error {
+
+	headers := handlers.AllowedHeaders([]string{
+		"X-Requested-With",
+		"Content-Type",
+		"Authorization",
+	})
+
+	methods := handlers.AllowedMethods([]string{
+		"GET",
+		"POST",
+		"PUT",
+		"PATCH",
+		"DELETE",
+		"OPTIONS",
+	})
+
+	origins := handlers.AllowedOrigins([]string{
+		"http://localhost:3000",
+		"http://localhost:5173",
+	})
+
 	log.Println("Server running on port:", addr)
-	return http.ListenAndServe(addr, router)
+
+	return http.ListenAndServe(
+		addr,
+		handlers.CORS(headers, methods, origins)(router),
+	)
 }
