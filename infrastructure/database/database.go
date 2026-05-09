@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -52,7 +53,7 @@ func NewDatabase() (*gorm.DB, error) {
 }
 
 func GetEnv(key, defaultValue string) string {
-	// err := godotenv.Load()
+	_ = godotenv.Load()
 	// if err != nil {
 	// 	log.Fatal(err)
 	// }
