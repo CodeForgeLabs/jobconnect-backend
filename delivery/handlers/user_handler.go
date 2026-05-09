@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -71,7 +72,7 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   5184000, // 2 months in seconds
 		HttpOnly: true,    // Still keep this! It protects against JS scripts
-		Secure:   true,    // Set to false so it works on http://localhost
+		Secure:   false,   // Set to false so it works on http://localhost
 		SameSite: http.SameSiteNoneMode,
 	})
 
@@ -129,7 +130,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   5184000, // 2 months in seconds
 		HttpOnly: true,    // Still keep this! It protects against JS scripts
-		Secure:   true,    // Set to false so it works on http://localhost
+		Secure:   false,   // Set to false so it works on http://localhost
 		SameSite: http.SameSiteNoneMode,
 	})
 	w.Header().Set("Content-Type", "application/json")
@@ -318,6 +319,54 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "User deleted successfully",
+	})
+}
+
+// UserLoggedIn godoc
+// @Summary Check if user is logged in
+// @Description Returns current user info from JWT cookie
+// @Tags Users
+// @Produce json
+// @Success 200 {object} map[string]string "User is logged in"
+// @Failure 401 {string} string "Unauthorized: Please login"
+// @Router /users/logged [get]
+func (h *UserHandler) UserLoggedIn(w http.ResponseWriter, r *http.Request) {
+	userId, role, err := auth.GetUserFromToken(r)
+	if err != nil {
+		http.Error(w, "Unauthorized: Please login", http.StatusUnauthorized)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "User is logged in",
+		"user_id": userId,
+		"role":    role,
+	})
+}
+
+// UserLogout godoc
+// @Summary Logout user
+// @Description Clears authentication cookie and logs user out
+// @Tags Users
+// @Produce json
+// @Success 200 {object} map[string]string "Logged out successfully"
+// @Router /users/logout [post]
+func (h *UserHandler) UserLogout(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "token",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		Expires:  time.Unix(0, 0),
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
+	})
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Logged out successfully",
 	})
 }
 

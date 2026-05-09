@@ -66,6 +66,8 @@ func (r *Router) RegisterRoute() {
 	userRoutes.HandleFunc("/me", userHandler.GetUserByID).Methods("GET")
 	userRoutes.HandleFunc("/me", userHandler.UpdateUser).Methods("PATCH")
 	userRoutes.HandleFunc("/me", userHandler.DeleteUser).Methods("DELETE")
+	userRoutes.HandleFunc("/logged", userHandler.UserLoggedIn).Methods("GET")
+	userRoutes.HandleFunc("/logout", userHandler.UserLogout).Methods("POST")
 
 	// =========================
 	// JOB MODULE
