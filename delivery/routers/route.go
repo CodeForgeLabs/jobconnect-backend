@@ -201,13 +201,18 @@ func (r *Router) Run(addr string, router *mux.Router) error {
 		"OPTIONS",
 	})
 
-	// Allow ALL origins
-	origins := handlers.AllowedOrigins([]string{"*"})
-
-	log.Println("Server running on port:", addr)
+	origins := handlers.AllowedOrigins([]string{
+		"http://localhost:3000",
+		"http://localhost:5173",
+	})
 
 	return http.ListenAndServe(
 		addr,
-		handlers.CORS(headers, methods, origins)(router),
+		handlers.CORS(
+			headers,
+			methods,
+			origins,
+			handlers.AllowCredentials(),
+		)(router),
 	)
 }
