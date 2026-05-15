@@ -104,8 +104,8 @@ func (h *WalletHandler) CreateTransaction(w http.ResponseWriter, r *http.Request
 		Amount:      float64(input.AmountMinor),
 		TxRef:       tx.TxRef,
 		Description: input.Description,
-		CallbackURL: "https://aorta-contact-scapegoat.ngrok-free.dev/api/v1/wallet/transaction/update",
-		ReturnURL:   "https://mezgebesibhat.vercel.app/thank-you",
+		CallbackURL: "https://jobconnect-backend-4qq7.onrender.com/api/v1/wallet/transaction/update",
+		// ReturnURL:   "https://mezgebesibhat.vercel.app/thank-you",
 	})
 	if err != nil {
 		http.Error(w, "Failed to initialize payment: "+err.Error(), http.StatusInternalServerError)
