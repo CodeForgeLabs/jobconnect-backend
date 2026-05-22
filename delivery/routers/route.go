@@ -61,6 +61,9 @@ func (r *Router) RegisterRoute() {
 	userRoutes.HandleFunc("/email", userHandler.GetUserByEmail).Methods("GET")
 	userRoutes.HandleFunc("/{id}/portfolio", portfolioHandler.GetPortfolioByUserID).Methods("GET")
 	userRoutes.HandleFunc("/{id}/reviews", reviewHandler.ListReviewsByFreelancerID).Methods("GET")
+	userRoutes.HandleFunc("/search", userHandler.GetUsersByName).Methods("GET")
+	userRoutes.HandleFunc("/byid", userHandler.GetUsersById).Methods("GET")
+	userRoutes.HandleFunc("/search/skill", userHandler.GetUserBySkill).Methods("GET")
 
 	// Protected routes
 	userRoutes.HandleFunc("/me", userHandler.GetUserByID).Methods("GET")
