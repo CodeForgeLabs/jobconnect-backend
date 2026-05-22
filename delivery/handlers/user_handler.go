@@ -21,11 +21,12 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 type CreateUserRequest struct {
-	Role      string `json:"role"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Email     string `json:"email"`
-	Password  string `json:"password"`
+	Role        string `json:"role"`
+	FirstName   string `json:"first_name"`
+	LastName    string `json:"last_name"`
+	Email       string `json:"email"`
+	Password    string `json:"password"`
+	CompanyName string `json:"company_name,omitempty"`
 }
 
 func NewUserHandler(userUsecase *usecase.UserUsecase) *UserHandler {
@@ -109,11 +110,12 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	req.Password = hashedPassword
 	user := &domain.User{
-		Role:      domain.Role(req.Role),
-		FirstName: req.FirstName,
-		LastName:  req.LastName,
-		Email:     req.Email,
-		Password:  req.Password, // In production, hash this password!
+		Role:        domain.Role(req.Role),
+		FirstName:   req.FirstName,
+		LastName:    req.LastName,
+		Email:       req.Email,
+		Password:    req.Password, // In production, hash this password!
+		CompanyName: req.CompanyName,
 	}
 
 	err = h.userUsecase.CreateUser(user)
