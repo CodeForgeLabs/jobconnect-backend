@@ -245,6 +245,9 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	if payload.Email != nil {
 		existingUser.Email = *payload.Email
 	}
+	if payload.CompanyName != nil {
+		existingUser.CompanyName = *payload.CompanyName
+	}
 	if payload.Password != nil {
 		// Hash password before saving
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(*payload.Password), bcrypt.DefaultCost)
@@ -370,6 +373,86 @@ func (h *UserHandler) UserLogout(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GetUsersById godoc
+// @Summary Get user by ID
+// @Description Retrieve user profile using ID
+// @Tags Users
+// @Produce json
+// @Param id query int true "User ID"
+// @Success 200 {object} domain.User
+// @Failure 400 {string} string "ID required"
+// @Failure 404 {string} string "User not found"
+// @Router /users/byid [get]
+func (h *UserHandler) GetUsersById(w http.ResponseWriter, r *http.Request) {
+	idStr := r.URL.Query().Get("id")
+	if idStr == "" {
+		http.Error(w, "ID query parameter is required", http.StatusBadRequest)
+		return
+	}
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid ID format", http.StatusBadRequest)
+		return
+	}
+	user, err := h.userUsecase.GetUsersById(uint(id))
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+
+// GetUsersByName godoc
+// @Summary Get users by name
+// @Description Retrieve user profiles matching name query
+// @Tags Users
+// @Produce json
+// @Param name query string true "User name"
+// @Success 200 {array} domain.User
+// @Failure 400 {string} string "Name required"
+// @Failure 404 {string} string "No users found"
+// @Router /users/search [get]
+func (h *UserHandler) GetUsersByName(w http.ResponseWriter, r *http.Request) {
+	name := r.URL.Query().Get("name")
+	if name == "" {
+		http.Error(w, "Name query parameter is required", http.StatusBadRequest)
+		return
+	}
+	users, err := h.userUsecase.GetUsersByName(name)
+	if err != nil {
+		http.Error(w, "No users found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(users)
+}
+
+// GetUserBySkill godoc
+// @Summary Get users by skill
+// @Description Retrieve user profiles matching skill query
+// @Tags Users
+// @Produce json
+// @Param skill query string true "User skill"
+// @Success 200 {array} domain.User
+// @Failure 400 {string} string "Skill required"
+// @Failure 404 {string} string "No users found"
+// @Router /users/search/skill [get]
+func (h *UserHandler) GetUserBySkill(w http.ResponseWriter, r *http.Request) {
+	skill := r.URL.Query().Get("skill")
+	if skill == "" {
+		http.Error(w, "Skill query parameter is required", http.StatusBadRequest)
+		return
+	}
+	users, err := h.userUsecase.GetUserBySkill(skill)
+	if err != nil {
+		http.Error(w, "No users found with that skill", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(users)
+}
+
 type UpdateUserRequest struct {
 	Role      *domain.Role `json:"role"`
 	FirstName *string      `json:"first_name"`
@@ -385,4 +468,5 @@ type UpdateUserRequest struct {
 	Location          *string              `json:"location"`
 	PhoneNumber       *string              `json:"phone_number"`
 	ProfilePictureURL *string              `json:"profile_picture_url"`
+	CompanyName       *string              `json:"company_name"`
 }

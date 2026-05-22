@@ -33,3 +33,14 @@ func (u *UserUsecase) UpdateUser(user *domain.User) error {
 func (u *UserUsecase) DeleteUser(id uint) error {
 	return u.userRepo.DeleteUser(id)
 }
+func (u *UserUsecase) GetUsersById(id uint) (*domain.User, error) {
+	return u.userRepo.GetUsersById(id)
+}
+
+func (u *UserUsecase) GetUsersByName(name string) ([]*domain.User, error) {
+	return u.userRepo.GetUsersByName(name)
+}
+
+func (u *UserUsecase) GetUserBySkill(skill string) ([]*domain.User, error) {
+	return u.userRepo.GetUserBySkill(skill)
+}
