@@ -36,7 +36,7 @@ type User struct {
 	PhoneNumber       string       `gorm:"column:phone_number;type:varchar(50)" json:"phone_number"`
 	ProfilePictureURL string       `gorm:"column:profile_picture_url;type:text" json:"profile_picture_url"`
 	CompanyName       string       `gorm:"column:company_name;type:varchar(255)" json:"company_name"`
-
+	Connect           int          `gorm:"column:connect;type:int;default:0" json:"connect"`
 	// Timestamps
 	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 	UpdatedAt time.Time `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`

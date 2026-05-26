@@ -60,4 +60,5 @@ type WalletRepository interface {
 	UpdateTransactionStatus(txRef string, status TransactionStatus, externalRef string) error
 	GetTransactionByTxRef(txRef string) (WalletTransaction, error)
 	FetchTransactionsByWalletID(walletID uint) ([]WalletTransaction, error)
+	BuyConnect(amount int, userId uint) (bool, error)
 }

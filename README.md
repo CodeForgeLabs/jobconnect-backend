@@ -47,4 +47,3 @@ After generating docs and starting the server, Swagger is available at:
 ```text
 http://localhost:8080/swagger/index.html
 ```
-
