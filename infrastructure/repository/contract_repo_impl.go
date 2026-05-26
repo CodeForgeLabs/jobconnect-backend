@@ -11,11 +11,12 @@ import (
 )
 
 type ContractRepository struct {
-	db *gorm.DB
+	db               *gorm.DB
+	notificationRepo domain.NotificationRepository
 }
 
-func NewContractRepository(db *gorm.DB) *ContractRepository {
-	return &ContractRepository{db: db}
+func NewContractRepository(db *gorm.DB, notificationRepo domain.NotificationRepository) *ContractRepository {
+	return &ContractRepository{db: db, notificationRepo: notificationRepo}
 }
 
 func (r *ContractRepository) CreateContract(jobId, freelancerId string, clientID uint) error {
@@ -156,7 +157,31 @@ func (r *ContractRepository) CreateContract(jobId, freelancerId string, clientID
 	if err := tx.Commit().Error; err != nil {
 		return fmt.Errorf("failed to commit contract creation: %w", err)
 	}
+	// 1. Create Notification for Freelancer
+	freelancerNotif := domain.Notification{
+		UserID:     freelancerID,
+		Type:       domain.NotifyContractCreated,
+		Title:      "Congratulations! You've been hired",
+		Message:    fmt.Sprintf("Your proposal for '%s' was accepted. The contract is now active.", contract.Title),
+		ContractID: &contract.ID,
+		ProposalID: &proposal.ID,
+		JobID:      &job.ID,
+		IsRead:     false,
+	}
+	_ = r.notificationRepo.CreateNotification(&freelancerNotif)
 
+	// 2. Create Notification for Client
+	clientNotif := domain.Notification{
+		UserID:     clientID,
+		Type:       domain.NotifyContractCreated,
+		Title:      "Contract started successfully",
+		Message:    fmt.Sprintf("You have successfully started a contract with the freelancer for '%s'.", contract.Title),
+		ContractID: &contract.ID,
+		ProposalID: &proposal.ID,
+		JobID:      &job.ID,
+		IsRead:     false,
+	}
+	_ = r.notificationRepo.CreateNotification(&clientNotif)
 	return nil
 }
 
@@ -309,20 +334,107 @@ func (r *ContractRepository) GetContractByID(id uint) (*domain.MyContractRespons
 
 func (r *ContractRepository) SubmitMilestone(request *domain.SubmitMilestoneRequest) error {
 	// later we will notify the client
-	return r.db.Model(&domain.ContractMilestone{}).
+	err := r.db.Model(&domain.ContractMilestone{}).
 		Where("id = ? AND contract_id = ?", request.MilestoneID, request.ContractID).
 		Updates(map[string]interface{}{
 			"work_description": request.Description,
 			"submission_url":   request.MilestoneProjectURL,
 			"status":           domain.MilestoneSubmitted,
 		}).Error
+	if err != nil {
+		return fmt.Errorf("failed to submit milestone updates: %w", err)
+	}
+	// 3. Create the database notification for the Client
+	var contract domain.Contract
+	if err := r.db.First(&contract, request.ContractID).Error; err != nil {
+		return fmt.Errorf("contract not found for notification: %w", err)
+	}
+	clientNotif := domain.Notification{
+		UserID:     contract.ClientID, // Retrieved dynamically from the contract record
+		Type:       domain.NotifyMilestoneStatus,
+		Title:      "Milestone Work Submitted",
+		Message:    fmt.Sprintf("The work for milestone on contract '%s' has been submitted for your approval.", contract.Title),
+		ContractID: &contract.ID,
+		JobID:      &contract.JobID,
+		ProposalID: &contract.ProposalID,
+		IsRead:     false,
+	}
+	_ = r.notificationRepo.CreateNotification(&clientNotif)
+
+	// 4. Create a database notification for the Freelancer as confirmation
+	freelancerNotif := domain.Notification{
+		UserID:     contract.FreelancerID,
+		Type:       domain.NotifyMilestoneStatus,
+		Title:      "Milestone Submitted Successfully",
+		Message:    fmt.Sprintf("Your submission for contract '%s' was sent to the client.", contract.Title),
+		ContractID: &contract.ID,
+		JobID:      &contract.JobID,
+		ProposalID: &contract.ProposalID,
+		IsRead:     false,
+	}
+	_ = r.notificationRepo.CreateNotification(&freelancerNotif)
+	return nil
 }
 
+// func (r *ContractRepository) ModifyStatus(milestoneId uint, newStatus domain.ContractMilestoneStatus) error {
+// 	// later if the status is approved we will release the payment to the freelancer
+// 	return r.db.Model(&domain.ContractMilestone{}).
+// 		Where("id = ?", milestoneId).
+// 		Update("status", newStatus).Error
+// }
+
 func (r *ContractRepository) ModifyStatus(milestoneId uint, newStatus domain.ContractMilestoneStatus) error {
-	// later if the status is approved we will release the payment to the freelancer
-	return r.db.Model(&domain.ContractMilestone{}).
+	// 1. Find the milestone first to get its ContractID
+	var milestone domain.ContractMilestone
+	if err := r.db.First(&milestone, milestoneId).Error; err != nil {
+		return fmt.Errorf("milestone not found: %w", err)
+	}
+
+	// 2. Fetch the parent Contract to get the FreelancerID and Title context
+	var contract domain.Contract
+	if err := r.db.First(&contract, milestone.ContractID).Error; err != nil {
+		return fmt.Errorf("parent contract not found: %w", err)
+	}
+
+	// 3. Update the milestone status in the database
+	err := r.db.Model(&domain.ContractMilestone{}).
 		Where("id = ?", milestoneId).
 		Update("status", newStatus).Error
+	if err != nil {
+		return fmt.Errorf("failed to update milestone status: %w", err)
+	}
+
+	// 4. Customize the notification title and message based on the new status
+	var title, message string
+	switch newStatus {
+	case domain.MilestoneRevisionRequested:
+		title = "Revision Requested"
+		message = fmt.Sprintf("The client requested changes on your milestone for contract '%s'.", contract.Title)
+	case domain.MilestoneApproved:
+		title = "Milestone Approved"
+		message = fmt.Sprintf("Great news! Your milestone for contract '%s' has been approved.", contract.Title)
+	case domain.MilestonePaid:
+		title = "Milestone Payment Released"
+		message = fmt.Sprintf("Payment for your milestone on contract '%s' has been successfully released.", contract.Title)
+	default:
+		title = "Milestone Status Updated"
+		message = fmt.Sprintf("Your milestone status for contract '%s' has been updated to %s.", contract.Title, newStatus)
+	}
+
+	// 5. Save the notification to the database for the Freelancer
+	freelancerNotif := domain.Notification{
+		UserID:     contract.FreelancerID, // Retrieved safely through the milestone -> contract connection
+		Type:       domain.NotifyMilestoneStatus,
+		Title:      title,
+		Message:    message,
+		ContractID: &contract.ID,
+		JobID:      &contract.JobID,
+		ProposalID: &contract.ProposalID,
+		IsRead:     false,
+	}
+	_ = r.notificationRepo.CreateNotification(&freelancerNotif)
+
+	return nil
 }
 
 func (r *ContractRepository) ModifyContractStatus(contractId, actorUserID uint, newStatus domain.ContractStatus) error {
@@ -348,7 +460,39 @@ func (r *ContractRepository) ModifyContractStatus(contractId, actorUserID uint, 
 		updates["end_date"] = &now
 	}
 
-	return r.db.Model(&contract).Updates(updates).Error
+	// 1. Execute the status updates in the database
+	if err := r.db.Model(&contract).Updates(updates).Error; err != nil {
+		return err
+	}
+
+	// 2. Customize the notification content based on the new contract status
+	var title, message string
+	switch newStatus {
+	case domain.ContractCompleted:
+		title = "Contract Completed!"
+		message = fmt.Sprintf("The client has marked your contract '%s' as completed. Great job!", contract.Title)
+	case "CANCELLED": // Use your exact enum string/value if you have a cancelled status
+		title = "Contract Cancelled"
+		message = fmt.Sprintf("The contract '%s' has been cancelled by the client.", contract.Title)
+	default:
+		title = "Contract Status Updated"
+		message = fmt.Sprintf("The status of your contract '%s' has been updated to %s.", contract.Title, newStatus)
+	}
+
+	// 3. Save the notification to the database for the Freelancer
+	freelancerNotif := domain.Notification{
+		UserID:     contract.FreelancerID, // The freelancer tied to this contract
+		Type:       domain.NotifyContractStatus,
+		Title:      title,
+		Message:    message,
+		ContractID: &contract.ID,
+		JobID:      &contract.JobID,
+		ProposalID: &contract.ProposalID,
+		IsRead:     false,
+	}
+	_ = r.notificationRepo.CreateNotification(&freelancerNotif)
+
+	return nil
 }
 
 func (r *ContractRepository) StartWorkSession(contractId, freelancerId uint) error {

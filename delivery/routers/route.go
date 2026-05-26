@@ -54,6 +54,20 @@ func (r *Router) RegisterRoute() {
 	api := r.route.PathPrefix("/api/v1").Subrouter()
 	// USER ROUTES
 	userRoutes := api.PathPrefix("/users").Subrouter()
+	hub := ws.NewHub()
+
+	r.route.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		ws.ServeWS(hub, w, r)
+	})
+	// NOTIFICATION MODULE
+	notificationRepo := repository.NewNotificationRepo(db, hub)
+	notificationUsecase := usecase.NewNotificationUsecase(notificationRepo)
+	notificationHandler := handler.NewNotificationHandler(notificationUsecase)
+
+	notificationRoutes := api.PathPrefix("/notifications").Subrouter()
+
+	notificationRoutes.HandleFunc("", notificationHandler.GetNotificationsByUserID).Methods("GET")
+	notificationRoutes.HandleFunc("/read", notificationHandler.MarkNotificationAsRead).Methods("POST")
 
 	// Public routes
 	userRoutes.HandleFunc("/register", userHandler.CreateUser).Methods("POST")
@@ -132,7 +146,7 @@ func (r *Router) RegisterRoute() {
 	// =========================
 	// CONTRACT MODULE
 	// =========================
-	contractRepo := repository.NewContractRepository(db)
+	contractRepo := repository.NewContractRepository(db, notificationRepo)
 	contractUsecase := usecase.NewContractUsecase(contractRepo)
 	contractHandler := handler.NewContractHandler(contractUsecase)
 
@@ -153,11 +167,7 @@ func (r *Router) RegisterRoute() {
 	// =========================
 	// MESSAGE MODULE
 	// =========================
-	hub := ws.NewHub()
 
-	r.route.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		ws.ServeWS(hub, w, r)
-	})
 	messageRepo := repository.NewMessageRepository(db, hub)
 	messageUsecase := usecase.NewMessageUsecase(messageRepo)
 	messageHandler := handler.NewMessageHandler(messageUsecase)
@@ -176,7 +186,7 @@ func (r *Router) RegisterRoute() {
 		database.GetEnv("CHAPA_SECRET_KEY", ""),
 		database.GetEnv("CHAPA_BASE_URL", "https://api.chapa.co/v1"),
 	)
-	walletRepo := repository.NewWalletRepo(db)
+	walletRepo := repository.NewWalletRepo(db, notificationRepo)
 	walletUsecase := usecase.NewWalletUsecase(walletRepo)
 	walletHandler := handler.NewWalletHandler(walletUsecase, chapaClient)
 

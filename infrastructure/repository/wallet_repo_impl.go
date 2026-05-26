@@ -9,11 +9,12 @@ import (
 )
 
 type walletRepo struct {
-	db *gorm.DB
+	db               *gorm.DB
+	notificationRepo domain.NotificationRepository
 }
 
-func NewWalletRepo(db *gorm.DB) *walletRepo {
-	return &walletRepo{db: db}
+func NewWalletRepo(db *gorm.DB, notificationRepo domain.NotificationRepository) *walletRepo {
+	return &walletRepo{db: db, notificationRepo: notificationRepo}
 }
 
 func (r *walletRepo) GetOrCreate(userID uint) (domain.Wallet, error) {
@@ -112,8 +113,9 @@ func (r *walletRepo) BuyConnect(amount int, userId uint) (bool, error) {
 		return false, err
 	}
 
-	// Calculate total cost
-	totalCost := amount * 10 // 1 connect = 10 birr
+	// Calculate total cost (1 connect = 10 birr -> 1000 minor units if 10 birr is 1000 cents)
+	// Adjust this multiplier based on whether your '10' is already in Birr or Cents/Minor units.
+	totalCost := amount * 10
 
 	// Check balance
 	if int(wallet.BalanceMinor) < totalCost {
@@ -128,6 +130,27 @@ func (r *walletRepo) BuyConnect(amount int, userId uint) (bool, error) {
 		return false, err
 	}
 
+	// ==========================================
+	// NEW: RECORD WALLET TRANSACTION
+	// ==========================================
+	txRef := fmt.Sprintf("TX-CONN-%d-%d", userId, time.Now().UnixNano())
+
+	transaction := domain.WalletTransaction{
+		WalletID:    wallet.ID,
+		TxRef:       txRef,
+		Type:        "DEBIT",      // Or your domain.TransactionTypeDebit enum
+		Status:      "SUCCESSFUL", // Or your domain.TransactionStatusSuccess enum
+		AmountMinor: int64(totalCost),
+		Description: fmt.Sprintf("Purchased %d connects", amount),
+		Provider:    "INTERNAL", // Internal wallet exchange, not Chapa
+		ExternalRef: "",         // No external reference needed
+	}
+
+	if err := tx.Create(&transaction).Error; err != nil {
+		tx.Rollback()
+		return false, fmt.Errorf("failed to record wallet transaction: %w", err)
+	}
+
 	// Update user connect field
 	if err := tx.Model(&domain.User{}).
 		Where("id = ?", userId).
@@ -140,6 +163,20 @@ func (r *walletRepo) BuyConnect(amount int, userId uint) (bool, error) {
 	if err := tx.Commit().Error; err != nil {
 		return false, err
 	}
+
+	// ==========================================
+	// NOTIFICATIONS (AFTER COMMIT)
+	// ==========================================
+
+	// 1. Save persistent database notification
+	notif := domain.Notification{
+		UserID:  userId,
+		Type:    domain.NotifyConnectsPurchased, // "CONNECTS_PURCHASED"
+		Title:   "Connects Purchased Successfully",
+		Message: fmt.Sprintf("You have successfully purchased %d connects for %d minor units!", amount, totalCost),
+		IsRead:  false,
+	}
+	_ = r.notificationRepo.CreateNotification(&notif)
 
 	return true, nil
 }
