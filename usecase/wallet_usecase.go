@@ -30,3 +30,7 @@ func (w *WalletUsecase) GetTransactionByTxRef(txRef string) (domain.WalletTransa
 func (w *WalletUsecase) FetchTransactionsByWalletID(walletID uint) ([]domain.WalletTransaction, error) {
 	return w.walletRepo.FetchTransactionsByWalletID(walletID)
 }
+
+func (w *WalletUsecase) BuyConnect(amount int, userId uint) (bool, error) {
+	return w.walletRepo.BuyConnect(amount, userId)
+}

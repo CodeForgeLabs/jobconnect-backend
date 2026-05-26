@@ -16,6 +16,9 @@ type WalletHandler struct {
 	walletUsecase *usecase.WalletUsecase
 	chapaClient   *chapa.Client
 }
+type BuyConnectInput struct {
+	Amount int `json:"amount"`
+}
 
 func NewWalletHandler(walletUsecase *usecase.WalletUsecase, chapaClient *chapa.Client) *WalletHandler {
 	return &WalletHandler{
@@ -231,4 +234,41 @@ func (h *WalletHandler) FetchTransactions(w http.ResponseWriter, r *http.Request
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"transactions": txs,
 	})
+}
+
+// BuyConnect godoc
+// @Summary Buy Connects for the authenticated user
+// @Description Purchase Connects for the authenticated user by charging their wallet
+// @Tags Wallet
+// @Accept json
+// @Produce json
+// @Param input body BuyConnectInput true "Buy Connect Input"
+// @Success 200 {object} domain.GenericResponse
+// @Failure 400 {object} domain.ErrorResponse
+// @Failure 401 {object} domain.ErrorResponse
+// @Failure 500 {object} domain.ErrorResponse
+// @Router /wallet/buy-connect [post]
+func (h *WalletHandler) BuyConnect(w http.ResponseWriter, r *http.Request) {
+
+	var input BuyConnectInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Invalid input", http.StatusBadRequest)
+		return
+	}
+	userId, _, err := auth.GetUserFromToken(r)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	success, err := h.walletUsecase.BuyConnect(input.Amount, parseUint(userId))
+	if err != nil || !success {
+		http.Error(w, "Failed to buy connect", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message": "Connect purchased successfully",
+	})
+
 }

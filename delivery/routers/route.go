@@ -186,6 +186,7 @@ func (r *Router) RegisterRoute() {
 	walletRoutes.HandleFunc("/transaction", walletHandler.CreateTransaction).Methods("POST")
 	walletRoutes.HandleFunc("/transaction/update", walletHandler.UpdateTransactionStatus).Methods("GET")
 	walletRoutes.HandleFunc("/transactions", walletHandler.FetchTransactions).Methods("GET")
+	walletRoutes.HandleFunc("/buy-connect", walletHandler.BuyConnect).Methods("POST")
 
 }
 

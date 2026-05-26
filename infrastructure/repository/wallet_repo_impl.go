@@ -101,3 +101,45 @@ func (r *walletRepo) FetchTransactionsByWalletID(walletID uint) ([]domain.Wallet
 	err := r.db.Where("wallet_id = ?", walletID).Order("created_at desc").Find(&txs).Error
 	return txs, err
 }
+
+func (r *walletRepo) BuyConnect(amount int, userId uint) (bool, error) {
+	tx := r.db.Begin()
+
+	// Find wallet
+	var wallet domain.Wallet
+	if err := tx.Where("user_id = ?", userId).First(&wallet).Error; err != nil {
+		tx.Rollback()
+		return false, err
+	}
+
+	// Calculate total cost
+	totalCost := amount * 10 // 1 connect = 10 birr
+
+	// Check balance
+	if int(wallet.BalanceMinor) < totalCost {
+		tx.Rollback()
+		return false, fmt.Errorf("insufficient wallet balance")
+	}
+
+	// Deduct wallet balance
+	if err := tx.Model(&wallet).
+		Update("balance_minor", int(wallet.BalanceMinor)-totalCost).Error; err != nil {
+		tx.Rollback()
+		return false, err
+	}
+
+	// Update user connect field
+	if err := tx.Model(&domain.User{}).
+		Where("id = ?", userId).
+		Update("connect", gorm.Expr("connect + ?", amount)).Error; err != nil {
+		tx.Rollback()
+		return false, err
+	}
+
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
