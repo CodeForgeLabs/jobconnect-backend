@@ -17,7 +17,11 @@ func NewNotificationRepo(db *gorm.DB, hub *ws.Hub) *notificationRepo {
 }
 
 func (r *notificationRepo) CreateNotification(notification *domain.Notification) error {
-	r.hub.SendToUser(notification.UserID, notification)
+
+	r.hub.SendToUser(notification.UserID, domain.WSMessageEvent{
+		Type: "new_notification",
+		Data: notification,
+	})
 	return r.db.Create(notification).Error
 }
 

@@ -8,6 +8,7 @@ type NotificationType string
 
 const (
 	NotifyConnectsPurchased NotificationType = "CONNECTS_PURCHASED"
+	NotifyConnectRefunded   NotificationType = "CONNECTS_REFUNDED"
 	NotifyProposalStatus    NotificationType = "PROPOSAL_STATUS_CHANGED"
 	NotifyMilestoneStatus   NotificationType = "MILESTONE_STATUS_CHANGED"
 	NotifyContractCreated   NotificationType = "CONTRACT_CREATED"

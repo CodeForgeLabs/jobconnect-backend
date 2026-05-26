@@ -78,8 +78,8 @@ type GenericResponse struct {
 }
 
 type WSMessageEvent struct {
-	Type string  `json:"type"` // "new_message"
-	Data Message `json:"data"`
+	Type string `json:"type"` // "new_message"
+	Data any    `json:"data"`
 }
 
 type WSConversationUpdate struct {

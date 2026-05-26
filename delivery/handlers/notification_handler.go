@@ -18,18 +18,6 @@ func NewNotificationHandler(notificationUsecase *usecase.NotificationUsecase) *N
 	}
 }
 
-// CreateNotification godoc
-// @Summary Create a new notification for a user
-// @Description Create a new notification for a user with the specified details
-// @Tags Notification
-// @Accept json
-// @Produce json
-// @Param notification body domain.Notification true "Notification details"
-// @Success 201 {object} domain.GenericResponse
-// @Failure 400 {object} domain.ErrorResponse
-// @Failure 401 {object} domain.ErrorResponse
-// @Failure 500 {object} domain.ErrorResponse
-// @Router /notifications [post]
 func (h *NotificationHandler) CreateNotification(w http.ResponseWriter, r *http.Request) {
 	var notification domain.Notification
 	if err := json.NewDecoder(r.Body).Decode(&notification); err != nil {
@@ -52,12 +40,11 @@ func (h *NotificationHandler) CreateNotification(w http.ResponseWriter, r *http.
 // @Tags Notification
 // @Accept json
 // @Produce json
-// @Param userId path int true "User ID"
-// @Success 200 {object} domain.GenericResponse
+// @Success 200 {object} domain.Notification
 // @Failure 400 {object} domain.ErrorResponse
 // @Failure 401 {object} domain.ErrorResponse
 // @Failure 500 {object} domain.ErrorResponse
-// @Router /notifications/user/{userId} [get]
+// @Router /notifications [get]
 func (h *NotificationHandler) GetNotificationsByUserID(w http.ResponseWriter, r *http.Request) {
 	userId, _, err := auth.GetUserFromToken(r)
 	if err != nil {
@@ -81,7 +68,6 @@ func (h *NotificationHandler) GetNotificationsByUserID(w http.ResponseWriter, r 
 // @Tags Notification
 // @Accept json
 // @Produce json
-// @Param notificationId path int true "Notification ID"
 // @Success 200 {object} domain.GenericResponse
 // @Failure 400 {object} domain.ErrorResponse
 // @Failure 401 {object} domain.ErrorResponse

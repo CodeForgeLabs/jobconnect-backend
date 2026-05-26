@@ -168,7 +168,10 @@ func (r *ContractRepository) CreateContract(jobId, freelancerId string, clientID
 		JobID:      &job.ID,
 		IsRead:     false,
 	}
-	_ = r.notificationRepo.CreateNotification(&freelancerNotif)
+
+	_ = r.notificationRepo.CreateNotification(
+		&freelancerNotif,
+	)
 
 	// 2. Create Notification for Client
 	clientNotif := domain.Notification{

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"fmt"
 	"job-connect/domain"
 
 	"gorm.io/gorm"
@@ -64,9 +65,69 @@ func (r *JobRepository) UpdateJob(job *domain.Job) error {
 }
 
 func (r *JobRepository) DeleteJob(id uint) error {
-	return r.db.Delete(&domain.Job{}, id).Error
-}
+	// Start a transaction since we are touching multiple tables
+	tx := r.db.Begin()
 
+	// 1. Fetch all proposals associated with this job to find who applied
+	var proposals []domain.Proposal
+	if err := tx.Where("job_id = ?", id).Find(&proposals).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to fetch proposals for job: %w", err)
+	}
+
+	// 2. Refund 10 connects to each applicant and queue notifications
+	notificationsToDispatch := make([]domain.Notification, 0, len(proposals))
+
+	for _, proposal := range proposals {
+		// Increment the user's connect count by 10
+		err := tx.Model(&domain.User{}).
+			Where("id = ?", proposal.SenderID).
+			Update("connect", gorm.Expr("connect + ?", 10)).Error
+		if err != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to refund connects for user %d: %w", proposal.SenderID, err)
+		}
+
+		// Prepare a notification struct for this specific user
+		notif := domain.Notification{
+			UserID:     proposal.SenderID,
+			Type:       domain.NotifyConnectRefunded,
+			Title:      "Connects Refunded",
+			Message:    "The job you applied to was deleted by the client. We have returned your 10 connects.",
+			JobID:      &id,
+			ProposalID: &proposal.ID,
+			IsRead:     false,
+		}
+
+		// Save the notification to the database within the transaction
+		if err := tx.Create(&notif).Error; err != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to save notification for user %d: %w", proposal.SenderID, err)
+		}
+
+		// Keep a record to send out via WebSockets after a successful commit
+		notificationsToDispatch = append(notificationsToDispatch, notif)
+	}
+
+	// 3. Delete the proposals associated with the job (or let GORM handle cascade if configured)
+	if err := tx.Where("job_id = ?", id).Delete(&domain.Proposal{}).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to clean up job proposals: %w", err)
+	}
+
+	// 4. Finally, delete the actual job record
+	if err := tx.Delete(&domain.Job{}, id).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to delete job: %w", err)
+	}
+
+	// Commit the entire chain of actions cleanly
+	if err := tx.Commit().Error; err != nil {
+		return fmt.Errorf("failed to commit job deletion and refunds: %w", err)
+	}
+
+	return nil
+}
 func (r *JobRepository) ListJobs(filter domain.JobFilter) ([]*domain.Job, error) {
 	var jobs []*domain.Job
 
