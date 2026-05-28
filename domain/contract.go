@@ -38,7 +38,7 @@ type Contract struct {
 
 	Status ContractStatus `gorm:"type:varchar(20);default:'ACTIVE'" json:"status"`
 
-	StartDate time.Time  `json:"start_date"`
+	StartDate time.Time  `gorm:"autoCreateTime" json:"start_date"`
 	EndDate   *time.Time `json:"end_date,omitempty"`
 
 	CreatedAt  time.Time           `gorm:"autoCreateTime"`
