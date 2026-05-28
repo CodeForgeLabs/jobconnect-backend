@@ -7,12 +7,13 @@ import (
 type NotificationType string
 
 const (
-	NotifyConnectsPurchased NotificationType = "CONNECTS_PURCHASED"
-	NotifyConnectRefunded   NotificationType = "CONNECTS_REFUNDED"
-	NotifyProposalStatus    NotificationType = "PROPOSAL_STATUS_CHANGED"
-	NotifyMilestoneStatus   NotificationType = "MILESTONE_STATUS_CHANGED"
-	NotifyContractCreated   NotificationType = "CONTRACT_CREATED"
-	NotifyContractStatus    NotificationType = "CONTRACT_STATUS_CHANGED"
+	NotifyConnectsPurchased    NotificationType = "CONNECTS_PURCHASED"
+	NotifyConnectRefunded      NotificationType = "CONNECTS_REFUNDED"
+	NotifyProposalStatus       NotificationType = "PROPOSAL_STATUS_CHANGED"
+	NotifyMilestoneStatus      NotificationType = "MILESTONE_STATUS_CHANGED"
+	NotifyContractCreated      NotificationType = "CONTRACT_CREATED"
+	NotifyContractStatus       NotificationType = "CONTRACT_STATUS_CHANGED"
+	NotifyWeeklyPaymentRelased NotificationType = "WEEKLY_PAYMENT_RELASED"
 )
 
 type Notification struct {
