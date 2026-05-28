@@ -32,6 +32,9 @@ func (r *UserRepository) Login(email, password string) (*domain.User, error) {
 	return &user, nil
 }
 func (r *UserRepository) CreateUser(user *domain.User) error {
+	if user.Role == domain.RoleFreelancer {
+		user.Connect = 50
+	}
 	return r.db.Create(user).Error
 }
 func (r *UserRepository) GetUserByID(id uint) (*domain.User, error) {
