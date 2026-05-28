@@ -923,11 +923,18 @@ func (r *ContractRepository) PayWeeklyLogs(
 	freelancerTx := domain.WalletTransaction{
 		WalletID: freelancerWallet.ID,
 
+		// TxRef: fmt.Sprintf(
+		// 	"WEEKLY-PAY-%d-%d-%d-freelancer",
+		// 	request.ContractID,
+		// 	request.Year,
+		// 	request.WeekNumber,
+		// ),
 		TxRef: fmt.Sprintf(
-			"WEEKLY-PAY-%d-%d-%d-freelancer",
+			"WEEKLY-PAY-%d-%d-%d-%d-freelancer",
 			request.ContractID,
 			request.Year,
 			request.WeekNumber,
+			time.Now().UnixNano(),
 		),
 
 		Type:        domain.TxPayment,

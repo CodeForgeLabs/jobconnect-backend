@@ -501,7 +501,7 @@ func (h *ContractHandler) PayWeeklyLogs(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := h.contractUsecase.PayWeeklyLogs(req); err != nil {
-		http.Error(w, "failed to process weekly payment", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
