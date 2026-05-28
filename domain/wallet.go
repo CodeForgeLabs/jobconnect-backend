@@ -22,6 +22,7 @@ const (
 	TxDeposit  TransactionType = "DEPOSIT"
 	TxPayment  TransactionType = "PAYMENT"
 	TxWithdraw TransactionType = "WITHDRAW"
+	TxEscrow   TransactionType = "ESCROW"
 )
 
 const (
