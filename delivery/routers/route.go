@@ -163,6 +163,8 @@ func (r *Router) RegisterRoute() {
 	contractRoutes.HandleFunc("/work-session/time-logs", contractHandler.FetchTimeLogs).Methods("POST")
 	contractRoutes.HandleFunc("/work-session/time-elapsed", contractHandler.FetchTimeElapsed).Methods("POST")
 	contractRoutes.HandleFunc("/work-session/weekly-hours", contractHandler.FetchWeeklyHours).Methods("POST")
+	contractRoutes.HandleFunc("/work-session/weekly-logs", contractHandler.FetchWeeklyWorkLogs).Methods("POST")
+	contractRoutes.HandleFunc("/work-session/pay-weekly-logs", contractHandler.PayWeeklyLogs).Methods("POST")
 
 	// =========================
 	// MESSAGE MODULE

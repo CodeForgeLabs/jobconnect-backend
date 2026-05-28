@@ -23,6 +23,9 @@ type CreateContractRequest struct {
 type WorkSessionRequest struct {
 	ContractID uint `json:"contract_id"`
 }
+type WeeklyLogResponse struct {
+	Data []*domain.WeeklyWorkLogResponse `json:"data"`
+}
 
 func NewContractHandler(contractUsecase *usecase.ContractUsecase) *ContractHandler {
 	return &ContractHandler{contractUsecase: contractUsecase}
@@ -355,13 +358,13 @@ func (h *ContractHandler) FetchTimeLogs(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	userID, _, err := auth.GetUserFromToken(r)
-	if err != nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
-	}
+	// userID, _, err := auth.GetUserFromToken(r)
+	// if err != nil {
+	// 	http.Error(w, "unauthorized", http.StatusUnauthorized)
+	// 	return
+	// }
 
-	timeLogs, err := h.contractUsecase.FetchTimeLogs(req.ContractID, parseUint(userID))
+	timeLogs, err := h.contractUsecase.FetchTimeLogs(req.ContractID)
 	if err != nil {
 		http.Error(w, "failed to fetch time logs", http.StatusInternalServerError)
 		return
@@ -392,13 +395,13 @@ func (h *ContractHandler) FetchTimeElapsed(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	userID, _, err := auth.GetUserFromToken(r)
-	if err != nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
-	}
+	// userID, _, err := auth.GetUserFromToken(r)
+	// if err != nil {
+	// 	http.Error(w, "unauthorized", http.StatusUnauthorized)
+	// 	return
+	// }
 
-	timeElapsed, err := h.contractUsecase.FetchTimeElapsed(req.ContractID, parseUint(userID))
+	timeElapsed, err := h.contractUsecase.FetchTimeElapsed(req.ContractID)
 	if err != nil {
 		http.Error(w, "failed to fetch time elapsed", http.StatusInternalServerError)
 		return
@@ -429,13 +432,13 @@ func (h *ContractHandler) FetchWeeklyHours(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	userID, _, err := auth.GetUserFromToken(r)
-	if err != nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
-	}
+	// userID, _, err := auth.GetUserFromToken(r)
+	// if err != nil {
+	// 	http.Error(w, "unauthorized", http.StatusUnauthorized)
+	// 	return
+	// }
 
-	weeklyHours, err := h.contractUsecase.FetchWeeklyHours(req.ContractID, parseUint(userID))
+	weeklyHours, err := h.contractUsecase.FetchWeeklyHours(req.ContractID)
 	if err != nil {
 		http.Error(w, "failed to fetch weekly hours", http.StatusInternalServerError)
 		return
@@ -445,4 +448,63 @@ func (h *ContractHandler) FetchWeeklyHours(w http.ResponseWriter, r *http.Reques
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"weekly_hours": weeklyHours,
 	})
+}
+
+// FetchWeeklyWorkLogs godoc
+// @Summary Fetch weekly work logs
+// @Description Fetch detailed daily work log breakdown for the current week for an hourly contract
+// @Tags Contracts
+// @Accept json
+// @Produce json
+// @Param request body WorkSessionRequest true "Work session request"
+// @Success 200 {object} WeeklyLogResponse
+// @Failure 400 {object} GenericMessageResponse
+// @Failure 401 {object} GenericMessageResponse
+// @Failure 500 {object} GenericMessageResponse
+// @Router /contracts/work-session/weekly-logs [post]
+func (h *ContractHandler) FetchWeeklyWorkLogs(w http.ResponseWriter, r *http.Request) {
+	var req WorkSessionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	workLogHours, err := h.contractUsecase.FetchWeeklyWorkLogs(req.ContractID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(WeeklyLogResponse{
+		Data: workLogHours,
+	})
+
+}
+
+// PayWeeklyLogs godoc
+// @Summary Pay weekly logs
+// @Description Process payment for the current week's work logs for an hourly contract
+// @Tags Contracts
+// @Accept json
+// @Produce json
+// @Param request body domain.PayWeeklyLogsRequest true "Pay weekly logs request"
+// @Success 200 {object} GenericMessageResponse
+// @Failure 400 {object} GenericMessageResponse
+// @Failure 401 {object} GenericMessageResponse
+// @Failure 500 {object} GenericMessageResponse
+// @Router /contracts/work-session/pay-weekly-logs [post]
+func (h *ContractHandler) PayWeeklyLogs(w http.ResponseWriter, r *http.Request) {
+	var req domain.PayWeeklyLogsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.contractUsecase.PayWeeklyLogs(req); err != nil {
+		http.Error(w, "failed to process weekly payment", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "weekly payment processed"})
 }

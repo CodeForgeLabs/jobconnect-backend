@@ -134,6 +134,38 @@ type TimeLog struct {
 	CreatedAt time.Time `gorm:"autoCreateTime"`
 	UpdatedAt time.Time `gorm:"autoUpdateTime"`
 }
+
+type WorkSessionResponse struct {
+	ID uint `json:"id"`
+
+	StartTime time.Time  `json:"start_time"`
+	EndTime   *time.Time `json:"end_time,omitempty"`
+
+	TotalHours float64 `json:"total_hours"`
+
+	IsPaid bool `json:"is_paid"`
+}
+
+type DayWorkLogResponse struct {
+	Day  string `json:"day"`
+	Date string `json:"date"`
+
+	TotalHours float64 `json:"total_hours"`
+
+	Sessions []WorkSessionResponse `json:"sessions"`
+}
+
+type WeeklyWorkLogResponse struct {
+	WeekNumber int `json:"week_number"`
+
+	WeekStart string `json:"week_start"`
+	WeekEnd   string `json:"week_end"`
+
+	TotalHours float64 `json:"total_hours"`
+
+	Days []DayWorkLogResponse `json:"days"`
+}
+
 type MyContractResponse struct {
 	ContractID uint `json:"contract_id"`
 
@@ -182,6 +214,14 @@ type SubmitMilestoneRequest struct {
 	Description         string `json:"description"`
 	MilestoneProjectURL string `json:"milestone_project_url"`
 }
+
+type PayWeeklyLogsRequest struct {
+	ContractID uint `json:"contract_id"`
+
+	WeekNumber int `json:"week_number"`
+
+	Year int `json:"year"`
+}
 type ContractRepository interface {
 	CreateContract(jobId, freelancerId string, clientID uint) error
 	GetMyContracts(userID uint) ([]*MyContractResponse, error)
@@ -193,7 +233,9 @@ type ContractRepository interface {
 	// log time for hourly contracts (not implemented yet)
 	StartWorkSession(contractId, freelancerId uint) error
 	EndWorkSession(contractId, freelancerId uint) error
-	FetchTimeLogs(contractId, freelancerId uint) ([]*TimeLog, error)
-	FetchTimeElapsed(contractId, freelancerId uint) (float64, error)
-	FetchWeeklyHours(contractId, freelancerId uint) (float64, error)
+	FetchTimeLogs(contractId uint) ([]*TimeLog, error)
+	FetchTimeElapsed(contractId uint) (float64, error)
+	FetchWeeklyHours(contractId uint) (float64, error)
+	FetchWeeklyWorkLogs(contractId uint) ([]*WeeklyWorkLogResponse, error)
+	PayWeeklyLogs(request PayWeeklyLogsRequest) error
 }

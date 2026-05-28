@@ -562,11 +562,11 @@ func (r *ContractRepository) EndWorkSession(contractId, freelancerId uint) error
 	return r.db.Save(&log).Error
 }
 
-func (r *ContractRepository) FetchTimeLogs(contractId, freelancerId uint) ([]*domain.TimeLog, error) {
+func (r *ContractRepository) FetchTimeLogs(contractId uint) ([]*domain.TimeLog, error) {
 	var logs []*domain.TimeLog
 
 	err := r.db.
-		Where("contract_id = ? AND freelancer_id = ?", contractId, freelancerId).
+		Where("contract_id = ?", contractId).
 		Order("start_time DESC").
 		Find(&logs).Error
 
@@ -577,11 +577,11 @@ func (r *ContractRepository) FetchTimeLogs(contractId, freelancerId uint) ([]*do
 	return logs, nil
 }
 
-func (r *ContractRepository) FetchTimeElapsed(contractId, freelancerId uint) (float64, error) {
+func (r *ContractRepository) FetchTimeElapsed(contractId uint) (float64, error) {
 	var logs []domain.TimeLog
 
 	err := r.db.
-		Where("contract_id = ? AND freelancer_id = ?", contractId, freelancerId).
+		Where("contract_id = ?", contractId).
 		Find(&logs).Error
 
 	if err != nil {
@@ -601,14 +601,14 @@ func (r *ContractRepository) FetchTimeElapsed(contractId, freelancerId uint) (fl
 	return total, nil
 }
 
-func (r *ContractRepository) FetchWeeklyHours(contractId, freelancerId uint) (float64, error) {
+func (r *ContractRepository) FetchWeeklyHours(contractId uint) (float64, error) {
 	var logs []domain.TimeLog
 
 	sevenDaysAgo := time.Now().AddDate(0, 0, -7)
 
 	err := r.db.
-		Where("contract_id = ? AND freelancer_id = ? AND start_time >= ?",
-			contractId, freelancerId, sevenDaysAgo).
+		Where("contract_id = ? AND start_time >= ?",
+			contractId, sevenDaysAgo).
 		Find(&logs).Error
 
 	if err != nil {
@@ -626,4 +626,379 @@ func (r *ContractRepository) FetchWeeklyHours(contractId, freelancerId uint) (fl
 	}
 
 	return total, nil
+}
+
+func (r *ContractRepository) FetchWeeklyWorkLogs(
+	contractId uint,
+) ([]*domain.WeeklyWorkLogResponse, error) {
+
+	var logs []domain.TimeLog
+
+	// Fetch all logs for the contract
+	err := r.db.
+		Where("contract_id = ?", contractId).
+		Order("start_time ASC").
+		Find(&logs).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	// week map
+	weekMap := make(map[string]*domain.WeeklyWorkLogResponse)
+
+	for _, log := range logs {
+
+		// -------------------------
+		// WEEK INFO
+		// -------------------------
+		year, week := log.StartTime.ISOWeek()
+
+		weekKey := fmt.Sprintf("%d-%d", year, week)
+
+		// Calculate week start (Monday)
+		weekday := int(log.StartTime.Weekday())
+
+		// Go starts Sunday=0
+		if weekday == 0 {
+			weekday = 7
+		}
+
+		weekStart := log.StartTime.AddDate(0, 0, -(weekday - 1))
+		weekEnd := weekStart.AddDate(0, 0, 6)
+
+		// -------------------------
+		// CREATE WEEK IF NOT EXISTS
+		// -------------------------
+		if _, exists := weekMap[weekKey]; !exists {
+			weekMap[weekKey] = &domain.WeeklyWorkLogResponse{
+				WeekNumber: week,
+				WeekStart:  weekStart.Format("2006-01-02"),
+				WeekEnd:    weekEnd.Format("2006-01-02"),
+				Days:       []domain.DayWorkLogResponse{},
+			}
+		}
+
+		weekResponse := weekMap[weekKey]
+
+		// -------------------------
+		// FIND DAY
+		// -------------------------
+		dayName := log.StartTime.Weekday().String()
+		date := log.StartTime.Format("2006-01-02")
+
+		var dayResponse *domain.DayWorkLogResponse
+
+		for i := range weekResponse.Days {
+			if weekResponse.Days[i].Date == date {
+				dayResponse = &weekResponse.Days[i]
+				break
+			}
+		}
+
+		// -------------------------
+		// CREATE DAY IF NOT EXISTS
+		// -------------------------
+		if dayResponse == nil {
+
+			newDay := domain.DayWorkLogResponse{
+				Day:        dayName,
+				Date:       date,
+				TotalHours: 0,
+				Sessions:   []domain.WorkSessionResponse{},
+			}
+
+			weekResponse.Days = append(weekResponse.Days, newDay)
+
+			dayResponse = &weekResponse.Days[len(weekResponse.Days)-1]
+		}
+
+		// -------------------------
+		// CREATE SESSION
+		// -------------------------
+		session := domain.WorkSessionResponse{
+			ID:         log.ID,
+			StartTime:  log.StartTime,
+			EndTime:    log.EndTime,
+			TotalHours: log.TotalHours,
+			IsPaid:     log.IsPaid,
+		}
+
+		// append session
+		dayResponse.Sessions = append(dayResponse.Sessions, session)
+
+		// update totals
+		dayResponse.TotalHours += log.TotalHours
+		weekResponse.TotalHours += log.TotalHours
+	}
+
+	// -------------------------
+	// CONVERT MAP TO SLICE
+	// -------------------------
+	result := make([]*domain.WeeklyWorkLogResponse, 0)
+
+	for _, week := range weekMap {
+		result = append(result, week)
+	}
+
+	return result, nil
+}
+
+func (r *ContractRepository) PayWeeklyLogs(
+	request domain.PayWeeklyLogsRequest,
+) error {
+
+	// -----------------------------------
+	// FETCH CONTRACT
+	// -----------------------------------
+	var contract domain.Contract
+
+	if err := r.db.
+		First(&contract, request.ContractID).Error; err != nil {
+
+		return err
+	}
+
+	if contract.Type != domain.ContractHourly {
+		return fmt.Errorf("contract is not hourly")
+	}
+
+	if contract.HourlyRate == nil {
+		return fmt.Errorf("hourly rate missing")
+	}
+
+	// -----------------------------------
+	// FETCH UNPAID LOGS
+	// -----------------------------------
+	var logs []domain.TimeLog
+
+	if err := r.db.
+		Where("contract_id = ? AND is_paid = ?",
+			request.ContractID,
+			false,
+		).
+		Find(&logs).Error; err != nil {
+
+		return err
+	}
+
+	var selectedLogs []domain.TimeLog
+
+	var totalHours float64
+
+	for _, log := range logs {
+
+		year, week := log.StartTime.ISOWeek()
+
+		if year == request.Year &&
+			week == request.WeekNumber {
+
+			selectedLogs = append(selectedLogs, log)
+			totalHours += log.TotalHours
+		}
+	}
+
+	if len(selectedLogs) == 0 {
+		return fmt.Errorf("no unpaid logs found")
+	}
+
+	// -----------------------------------
+	// CALCULATE PAYMENT
+	// -----------------------------------
+	totalAmount := totalHours * (*contract.HourlyRate)
+
+	// convert to minor unit
+	totalAmountMinor := int64(totalAmount)
+
+	// -----------------------------------
+	// START DB TRANSACTION
+	// -----------------------------------
+	tx := r.db.Begin()
+
+	// -----------------------------------
+	// FETCH WALLETS
+	// -----------------------------------
+	var clientWallet domain.Wallet
+	var freelancerWallet domain.Wallet
+
+	if err := tx.
+		Where("user_id = ?", contract.ClientID).
+		First(&clientWallet).Error; err != nil {
+
+		tx.Rollback()
+		return err
+	}
+
+	if err := tx.
+		Where("user_id = ?", contract.FreelancerID).
+		First(&freelancerWallet).Error; err != nil {
+
+		tx.Rollback()
+		return err
+	}
+
+	// -----------------------------------
+	// CHECK CLIENT BALANCE
+	// -----------------------------------
+	if clientWallet.BalanceMinor < totalAmountMinor {
+
+		tx.Rollback()
+		return fmt.Errorf("insufficient balance")
+	}
+
+	// -----------------------------------
+	// UPDATE WALLET BALANCES
+	// -----------------------------------
+	clientWallet.BalanceMinor -= totalAmountMinor
+
+	freelancerWallet.BalanceMinor += totalAmountMinor
+
+	if err := tx.Save(&clientWallet).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if err := tx.Save(&freelancerWallet).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// -----------------------------------
+	// MARK LOGS AS PAID
+	// -----------------------------------
+	var logIDs []uint
+
+	for _, log := range selectedLogs {
+		logIDs = append(logIDs, log.ID)
+	}
+
+	if err := tx.
+		Model(&domain.TimeLog{}).
+		Where("id IN ?", logIDs).
+		Update("is_paid", true).Error; err != nil {
+
+		tx.Rollback()
+		return err
+	}
+
+	// -----------------------------------
+	// CREATE CLIENT TRANSACTION
+	// -----------------------------------
+	clientTx := domain.WalletTransaction{
+		WalletID: clientWallet.ID,
+
+		TxRef: fmt.Sprintf(
+			"WEEKLY-PAY-%d-%d-%d-client",
+			request.ContractID,
+			request.Year,
+			request.WeekNumber,
+		),
+
+		Type:        domain.TxPayment,
+		Status:      domain.TxSuccess,
+		AmountMinor: totalAmountMinor,
+		Description: fmt.Sprintf(
+			"Weekly payment for contract #%d week %d",
+			request.ContractID,
+			request.WeekNumber,
+		),
+		Provider: "INTERNAL",
+	}
+
+	if err := tx.Create(&clientTx).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// -----------------------------------
+	// CREATE FREELANCER TRANSACTION
+	// -----------------------------------
+	freelancerTx := domain.WalletTransaction{
+		WalletID: freelancerWallet.ID,
+
+		TxRef: fmt.Sprintf(
+			"WEEKLY-PAY-%d-%d-%d-freelancer",
+			request.ContractID,
+			request.Year,
+			request.WeekNumber,
+		),
+
+		Type:        domain.TxPayment,
+		Status:      domain.TxSuccess,
+		AmountMinor: totalAmountMinor,
+		Description: fmt.Sprintf(
+			"Received weekly payment for contract #%d week %d",
+			request.ContractID,
+			request.WeekNumber,
+		),
+		Provider: "INTERNAL",
+	}
+
+	if err := tx.Create(&freelancerTx).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// -----------------------------------
+	// COMMIT
+	// -----------------------------------
+	if err := tx.Commit().Error; err != nil {
+		return err
+	}
+
+	// -----------------------------------
+	// CREATE NOTIFICATION FOR FREELANCER
+	// -----------------------------------
+	freelancerNotif := domain.Notification{
+		UserID: contract.FreelancerID,
+
+		Type: domain.NotifyWeeklyPaymentRelased,
+
+		Title: "Weekly Payment Received",
+
+		Message: fmt.Sprintf(
+			"You received payment for week %d on contract '%s'.",
+			request.WeekNumber,
+			contract.Title,
+		),
+
+		ContractID: &contract.ID,
+		ProposalID: &contract.ProposalID,
+		JobID:      &contract.JobID,
+
+		IsRead: false,
+	}
+
+	_ = r.notificationRepo.CreateNotification(
+		&freelancerNotif,
+	)
+
+	// -----------------------------------
+	// CREATE NOTIFICATION FOR CLIENT
+	// -----------------------------------
+	clientNotif := domain.Notification{
+		UserID: contract.ClientID,
+
+		Type: domain.NotifyWeeklyPaymentRelased,
+
+		Title: "Weekly Payment Sent",
+
+		Message: fmt.Sprintf(
+			"You successfully paid week %d for contract '%s'.",
+			request.WeekNumber,
+			contract.Title,
+		),
+
+		ContractID: &contract.ID,
+		ProposalID: &contract.ProposalID,
+		JobID:      &contract.JobID,
+
+		IsRead: false,
+	}
+
+	_ = r.notificationRepo.CreateNotification(
+		&clientNotif,
+	)
+
+	return nil
 }

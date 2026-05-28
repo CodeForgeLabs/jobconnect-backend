@@ -39,12 +39,19 @@ func (u *ContractUsecase) StartWorkSession(contractId, freelancerId uint) error 
 func (u *ContractUsecase) EndWorkSession(contractId, freelancerId uint) error {
 	return u.contractRepo.EndWorkSession(contractId, freelancerId)
 }
-func (u *ContractUsecase) FetchTimeLogs(contractId, freelancerId uint) ([]*domain.TimeLog, error) {
-	return u.contractRepo.FetchTimeLogs(contractId, freelancerId)
+func (u *ContractUsecase) FetchTimeLogs(contractId uint) ([]*domain.TimeLog, error) {
+	return u.contractRepo.FetchTimeLogs(contractId)
 }
-func (u *ContractUsecase) FetchTimeElapsed(contractId, freelancerId uint) (float64, error) {
-	return u.contractRepo.FetchTimeElapsed(contractId, freelancerId)
+func (u *ContractUsecase) FetchTimeElapsed(contractId uint) (float64, error) {
+	return u.contractRepo.FetchTimeElapsed(contractId)
 }
-func (u *ContractUsecase) FetchWeeklyHours(contractId, freelancerId uint) (float64, error) {
-	return u.contractRepo.FetchWeeklyHours(contractId, freelancerId)
+func (u *ContractUsecase) FetchWeeklyHours(contractId uint) (float64, error) {
+	return u.contractRepo.FetchWeeklyHours(contractId)
+}
+func (u *ContractUsecase) FetchWeeklyWorkLogs(contractId uint) ([]*domain.WeeklyWorkLogResponse, error) {
+	return u.contractRepo.FetchWeeklyWorkLogs(contractId)
+}
+
+func (u *ContractUsecase) PayWeeklyLogs(request domain.PayWeeklyLogsRequest) error {
+	return u.contractRepo.PayWeeklyLogs(request)
 }
