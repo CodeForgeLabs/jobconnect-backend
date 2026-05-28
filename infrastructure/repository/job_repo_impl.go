@@ -16,7 +16,50 @@ func NewJobRepository(db *gorm.DB) *JobRepository {
 }
 
 func (r *JobRepository) CreateJob(job *domain.Job) error {
-	return r.db.Create(job).Error
+	if job.Budget != nil {
+		userId := job.CreatedBy
+		// check wallet amount
+		// if wallet amount < userId return don't have enough amount
+		var wallet domain.Wallet
+		err := r.db.Where("user_id = ?", userId).First(&wallet).Error
+		if err != nil {
+			return fmt.Errorf("failed to retrieve wallet: %w", err)
+		}
+
+		if float64(wallet.BalanceMinor) < *job.Budget {
+			return fmt.Errorf("insufficient funds: wallet balance is %.2f, but job budget is %.2f", float64(wallet.BalanceMinor), *job.Budget)
+		}
+
+		// deduct the amount from the user's wallet
+		err = r.db.Model(&domain.Wallet{}).
+			Where("user_id = ?", userId).
+			Update("balance_minor", gorm.Expr("balance_minor - ?", *job.Budget)).Error
+		if err != nil {
+			return fmt.Errorf("failed to deduct amount from wallet: %w", err)
+		}
+
+		tx := domain.WalletTransaction{
+			WalletID:    wallet.ID,
+			TxRef:       fmt.Sprintf("job_creation_%d_%d", userId, job.ID),
+			Type:        domain.TxEscrow,
+			Status:      domain.TxSuccess,
+			AmountMinor: int64(*job.Budget), // convert to minor unit
+			Description: fmt.Sprintf("Payment for creating job ID %d", job.ID),
+			Provider:    "Internal",
+		}
+
+		err = r.db.Create(&tx).Error
+		if err != nil {
+			return fmt.Errorf("failed to create wallet transaction: %w", err)
+		}
+
+	}
+
+	err := r.db.Create(job).Error
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (r *JobRepository) GetJobByID(id uint) (*domain.Job, error) {

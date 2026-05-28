@@ -407,18 +407,48 @@ func (r *ContractRepository) ModifyStatus(milestoneId uint, newStatus domain.Con
 		return fmt.Errorf("failed to update milestone status: %w", err)
 	}
 
+	if newStatus == domain.MilestoneApproved {
+		var wallet domain.Wallet
+		err := r.db.Where("user_id = ?", contract.FreelancerID).First(&wallet).Error
+		if err != nil {
+			return fmt.Errorf("failed to retrieve wallet: %w", err)
+		}
+
+		// calculate the amount in minor unit (cents)
+		amountMinor := int64(milestone.Amount)
+
+		err = r.db.Model(&domain.Wallet{}).
+			Where("user_id = ?", contract.FreelancerID).
+			Update("balance_minor", gorm.Expr("balance_minor + ?", amountMinor)).Error
+		if err != nil {
+			return fmt.Errorf("failed to update wallet balance: %w", err)
+		}
+
+		tx := domain.WalletTransaction{
+			WalletID:    wallet.ID,
+			TxRef:       fmt.Sprintf("milestone_payment_%d_%d", contract.FreelancerID, milestone.ID),
+			Type:        domain.TxPayment,
+			Status:      domain.TxSuccess,
+			AmountMinor: amountMinor,
+			Description: fmt.Sprintf("Payment for milestone on contract '%s'", contract.Title),
+			Provider:    "Internal",
+		}
+
+		err = r.db.Create(&tx).Error
+		if err != nil {
+			return fmt.Errorf("failed to create wallet transaction: %w", err)
+		}
+	}
+
 	// 4. Customize the notification title and message based on the new status
 	var title, message string
 	switch newStatus {
 	case domain.MilestoneRevisionRequested:
 		title = "Revision Requested"
 		message = fmt.Sprintf("The client requested changes on your milestone for contract '%s'.", contract.Title)
-	case domain.MilestoneApproved:
-		title = "Milestone Approved"
-		message = fmt.Sprintf("Great news! Your milestone for contract '%s' has been approved.", contract.Title)
-	case domain.MilestonePaid:
-		title = "Milestone Payment Released"
-		message = fmt.Sprintf("Payment for your milestone on contract '%s' has been successfully released.", contract.Title)
+	case domain.MilestoneApproved, domain.MilestonePaid:
+		title = "Milestone Approved & Payment Released"
+		message = fmt.Sprintf("Great news! Your milestone for contract '%s' has been approved, and your payment has been released from escrow.", contract.Title)
 	default:
 		title = "Milestone Status Updated"
 		message = fmt.Sprintf("Your milestone status for contract '%s' has been updated to %s.", contract.Title, newStatus)

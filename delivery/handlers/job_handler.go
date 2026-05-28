@@ -121,7 +121,7 @@ func (h *JobHandler) CreateJob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.jobUsecase.CreateJob(job); err != nil {
-		http.Error(w, "failed to create job", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
