@@ -305,14 +305,14 @@ func (h *ContractHandler) StartWorkSession(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
-
-	if err := h.contractUsecase.StartWorkSession(req.ContractID, parseUint(userID)); err != nil {
+	link, err := h.contractUsecase.StartWorkSession(req.ContractID, parseUint(userID))
+	if err != nil {
 		http.Error(w, "failed to start work session", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"message": "work session started"})
+	json.NewEncoder(w).Encode(map[string]string{"message": "work session started", "calendar_link": link})
 }
 
 // EndWorkSession godoc
