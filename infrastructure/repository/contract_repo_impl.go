@@ -3,6 +3,7 @@ package repository
 import (
 	"errors"
 	"fmt"
+	"job-connect/chapa"
 	"job-connect/domain"
 	"strconv"
 	"time"
@@ -662,7 +663,20 @@ func (r *ContractRepository) ModifyContractStatus(contractId, actorUserID uint, 
 
 	return nil
 }
-func (r *ContractRepository) StartWorkSession(contractId, freelancerId uint) error {
+func (r *ContractRepository) StartWorkSession(contractId, freelancerId uint) (string, error) {
+	var freelancer domain.User
+	var contract domain.Contract
+	var client domain.User
+	if err := r.db.First(&freelancer, freelancerId).Error; err != nil {
+		return "", fmt.Errorf("freelancer not found: %w", err)
+	}
+	if err := r.db.First(&contract, contractId).Error; err != nil {
+		return "", fmt.Errorf("client not found: %w", err)
+	}
+	if err := r.db.First(&client, contract.ClientID).Error; err != nil {
+		return "", fmt.Errorf("client not found: %w", err)
+	}
+	// 1. Create time log
 	log := &domain.TimeLog{
 		ContractID:   contractId,
 		FreelancerID: freelancerId,
@@ -670,7 +684,38 @@ func (r *ContractRepository) StartWorkSession(contractId, freelancerId uint) err
 		IsPaid:       false,
 	}
 
-	return r.db.Create(log).Error
+	if err := r.db.Create(log).Error; err != nil {
+		return "", err
+	}
+
+	// 2. Create calendar invite
+	calendarService := chapa.NewGoogleCalendarInviteService()
+
+	now := time.Now()
+	start := now
+	end := now.Add(3 * time.Hour)
+
+	result, err := calendarService.CreateInvite(
+		chapa.CalendarInviteInput{
+			Summary:     "Work Session Started",
+			Description: "Freelancer work monitoring session",
+
+			AttendeeEmails: []string{
+				client.Email,
+				freelancer.Email,
+			},
+
+			StartAt: start.Format(time.RFC3339),
+			EndAt:   end.Format(time.RFC3339),
+		},
+	)
+
+	if err != nil {
+		return "", err
+	}
+
+	// 3. return meeting link
+	return result.MeetLink, nil
 }
 
 func (r *ContractRepository) EndWorkSession(contractId, freelancerId uint) error {

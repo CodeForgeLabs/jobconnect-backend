@@ -33,7 +33,7 @@ func (u *ContractUsecase) ModifyContractStatus(contractId, actorUserID uint, new
 	return u.contractRepo.ModifyContractStatus(contractId, actorUserID, newStatus)
 }
 
-func (u *ContractUsecase) StartWorkSession(contractId, freelancerId uint) error {
+func (u *ContractUsecase) StartWorkSession(contractId, freelancerId uint) (string, error) {
 	return u.contractRepo.StartWorkSession(contractId, freelancerId)
 }
 func (u *ContractUsecase) EndWorkSession(contractId, freelancerId uint) error {

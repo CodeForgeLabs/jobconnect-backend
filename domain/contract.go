@@ -231,7 +231,7 @@ type ContractRepository interface {
 	ModifyContractStatus(contractId, actorUserID uint, newStatus ContractStatus) error
 
 	// log time for hourly contracts (not implemented yet)
-	StartWorkSession(contractId, freelancerId uint) error
+	StartWorkSession(contractId, freelancerId uint) (string, error)
 	EndWorkSession(contractId, freelancerId uint) error
 	FetchTimeLogs(contractId uint) ([]*TimeLog, error)
 	FetchTimeElapsed(contractId uint) (float64, error)
