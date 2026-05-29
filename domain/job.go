@@ -88,6 +88,7 @@ type JobRepository interface {
 	DeleteJob(id uint) error
 	ListJobs(filter JobFilter) ([]*Job, error)
 	ListMyJobs(userID uint) ([]*Job, error)
+	ListJobByClientId(clientID uint) ([]*Job, error)
 }
 
 type JobFilter struct {

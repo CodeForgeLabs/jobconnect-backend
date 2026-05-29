@@ -102,11 +102,15 @@ func (r *Router) RegisterRoute() {
 	// Create job
 	jobRoutes.HandleFunc("", jobHandler.CreateJob).Methods("POST")
 	jobRoutes.HandleFunc("", jobHandler.ListJobs).Methods("GET")
+
+	// static routes FIRST
 	jobRoutes.HandleFunc("/mine", jobHandler.ListMyJobs).Methods("GET")
+	jobRoutes.HandleFunc("/by-client", jobHandler.ListJobByClientId).Methods("GET")
+
+	// dynamic routes LAST
 	jobRoutes.HandleFunc("/{id}", jobHandler.GetJobByID).Methods("GET")
 	jobRoutes.HandleFunc("/{id}", jobHandler.UpdateJob).Methods("PATCH")
 	jobRoutes.HandleFunc("/{id}", jobHandler.DeleteJob).Methods("DELETE")
-
 	// =========================
 	// PROPOSAL MODULE
 	// =========================
