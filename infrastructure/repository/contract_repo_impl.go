@@ -380,13 +380,6 @@ func (r *ContractRepository) SubmitMilestone(request *domain.SubmitMilestoneRequ
 	return nil
 }
 
-// func (r *ContractRepository) ModifyStatus(milestoneId uint, newStatus domain.ContractMilestoneStatus) error {
-// 	// later if the status is approved we will release the payment to the freelancer
-// 	return r.db.Model(&domain.ContractMilestone{}).
-// 		Where("id = ?", milestoneId).
-// 		Update("status", newStatus).Error
-// }
-
 func (r *ContractRepository) ModifyStatus(milestoneId uint, newStatus domain.ContractMilestoneStatus, feedback string) error {
 	// 1. Find the milestone first to get its ContractID
 	var milestone domain.ContractMilestone
@@ -474,17 +467,90 @@ func (r *ContractRepository) ModifyStatus(milestoneId uint, newStatus domain.Con
 	return nil
 }
 
+// func (r *ContractRepository) ModifyContractStatus(contractId, actorUserID uint, newStatus domain.ContractStatus) error {
+// 	var contract domain.Contract
+// 	if err := r.db.First(&contract, contractId).Error; err != nil {
+// 		return err
+// 	}
+
+// 	if contract.ClientID != actorUserID {
+// 		return domain.ErrForbidden
+// 	}
+
+// 	if contract.Status == domain.ContractCompleted && newStatus != domain.ContractCompleted {
+// 		return domain.ErrInvalidState
+// 	}
+
+// 	updates := map[string]interface{}{
+// 		"status": newStatus,
+// 	}
+
+// 	if newStatus == domain.ContractCompleted && contract.EndDate == nil {
+// 		now := time.Now()
+// 		updates["end_date"] = &now
+// 	}
+
+// 	// 1. Execute the status updates in the database
+// 	if err := r.db.Model(&contract).Updates(updates).Error; err != nil {
+// 		return err
+// 	}
+
+// 	// 2. Customize the notification content based on the new contract status
+// 	var title, message string
+// 	switch newStatus {
+// 	case domain.ContractCompleted:
+// 		title = "Contract Completed!"
+// 		message = fmt.Sprintf("The client has marked your contract '%s' as completed. Great job!", contract.Title)
+// 	case "CANCELLED": // Use your exact enum string/value if you have a cancelled status
+// 		title = "Contract Cancelled"
+// 		message = fmt.Sprintf("The contract '%s' has been cancelled by the client.", contract.Title)
+// 	default:
+// 		title = "Contract Status Updated"
+// 		message = fmt.Sprintf("The status of your contract '%s' has been updated to %s.", contract.Title, newStatus)
+// 	}
+
+// 	// 3. Save the notification to the database for the Freelancer
+// 	freelancerNotif := domain.Notification{
+// 		UserID:     contract.FreelancerID, // The freelancer tied to this contract
+// 		Type:       domain.NotifyContractStatus,
+// 		Title:      title,
+// 		Message:    message,
+// 		ContractID: &contract.ID,
+// 		JobID:      &contract.JobID,
+// 		ProposalID: &contract.ProposalID,
+// 		IsRead:     false,
+// 	}
+// 	_ = r.notificationRepo.CreateNotification(&freelancerNotif)
+
+// 	return nil
+// }
+
 func (r *ContractRepository) ModifyContractStatus(contractId, actorUserID uint, newStatus domain.ContractStatus) error {
+	// Start a database transaction to ensure data integrity
+	txCtx := r.db.Begin()
+	if txCtx.Error != nil {
+		return txCtx.Error
+	}
+	// Defer a rollback which will execute if we return early due to an error
+	defer func() {
+		if r := recover(); r != nil {
+			txCtx.Rollback()
+		}
+	}()
+
 	var contract domain.Contract
-	if err := r.db.First(&contract, contractId).Error; err != nil {
+	if err := txCtx.First(&contract, contractId).Error; err != nil {
+		txCtx.Rollback()
 		return err
 	}
 
 	if contract.ClientID != actorUserID {
+		txCtx.Rollback()
 		return domain.ErrForbidden
 	}
 
 	if contract.Status == domain.ContractCompleted && newStatus != domain.ContractCompleted {
+		txCtx.Rollback()
 		return domain.ErrInvalidState
 	}
 
@@ -498,17 +564,82 @@ func (r *ContractRepository) ModifyContractStatus(contractId, actorUserID uint, 
 	}
 
 	// 1. Execute the status updates in the database
-	if err := r.db.Model(&contract).Updates(updates).Error; err != nil {
+	if err := txCtx.Model(&contract).Updates(updates).Error; err != nil {
+		txCtx.Rollback()
 		return err
 	}
 
-	// 2. Customize the notification content based on the new contract status
+	// 2. Only refund milestones if the new status is CANCELLED
+	if newStatus == domain.ContractCancelled {
+		var milestones []domain.ContractMilestone
+		if err := txCtx.Where("contract_id = ?", contractId).Find(&milestones).Error; err != nil {
+			txCtx.Rollback()
+			return err
+		}
+
+		var wallet domain.Wallet
+		if err := txCtx.Where("user_id = ?", contract.ClientID).First(&wallet).Error; err != nil {
+			txCtx.Rollback()
+			return err
+		}
+
+		for _, m := range milestones {
+			// Skip milestones that are already approved or paid (Only refund unapproved/unpaid ones)
+			if m.Status == domain.MilestoneApproved || m.Status == domain.MilestonePaid {
+				continue
+			}
+
+			refundMinor := int64(m.Amount)
+
+			// A. Refund wallet
+			if err := txCtx.Model(&wallet).
+				Update("balance_minor", gorm.Expr("balance_minor + ?", refundMinor)).Error; err != nil {
+				txCtx.Rollback()
+				return err
+			}
+
+			// B. Create transaction record
+			txRecord := domain.WalletTransaction{
+				WalletID: wallet.ID,
+				TxRef: fmt.Sprintf(
+					"WEEKLY-PAY-%d-%d-freelancer",
+					contractId,
+					time.Now().UnixNano(),
+				),
+				Type:        domain.TxRefund,
+				Status:      domain.TxSuccess,
+				AmountMinor: refundMinor,
+				Description: fmt.Sprintf("Refund for cancelled contract %d milestone %d", contractId, m.ID),
+				Provider:    "SYSTEM",
+			}
+
+			if err := txCtx.Create(&txRecord).Error; err != nil {
+				txCtx.Rollback()
+				return err
+			}
+
+			// C. Mark milestone as refunded
+			if err := txCtx.Model(&domain.ContractMilestone{}).
+				Where("id = ?", m.ID).
+				Update("status", "REFUNDED").Error; err != nil {
+				txCtx.Rollback()
+				return err
+			}
+		}
+	}
+
+	// Commit the database transaction if everything up to this point succeeded
+	if err := txCtx.Commit().Error; err != nil {
+		return err
+	}
+
+	// 3. Customize the notification content based on the new contract status
 	var title, message string
 	switch newStatus {
 	case domain.ContractCompleted:
 		title = "Contract Completed!"
 		message = fmt.Sprintf("The client has marked your contract '%s' as completed. Great job!", contract.Title)
-	case "CANCELLED": // Use your exact enum string/value if you have a cancelled status
+	case "CANCELLED":
 		title = "Contract Cancelled"
 		message = fmt.Sprintf("The contract '%s' has been cancelled by the client.", contract.Title)
 	default:
@@ -516,9 +647,9 @@ func (r *ContractRepository) ModifyContractStatus(contractId, actorUserID uint, 
 		message = fmt.Sprintf("The status of your contract '%s' has been updated to %s.", contract.Title, newStatus)
 	}
 
-	// 3. Save the notification to the database for the Freelancer
+	// 4. Save the notification to the database for the Freelancer
 	freelancerNotif := domain.Notification{
-		UserID:     contract.FreelancerID, // The freelancer tied to this contract
+		UserID:     contract.FreelancerID,
 		Type:       domain.NotifyContractStatus,
 		Title:      title,
 		Message:    message,
@@ -531,7 +662,6 @@ func (r *ContractRepository) ModifyContractStatus(contractId, actorUserID uint, 
 
 	return nil
 }
-
 func (r *ContractRepository) StartWorkSession(contractId, freelancerId uint) error {
 	log := &domain.TimeLog{
 		ContractID:   contractId,
