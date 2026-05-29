@@ -78,6 +78,8 @@ func (r *Router) RegisterRoute() {
 	userRoutes.HandleFunc("/search", userHandler.GetUsersByName).Methods("GET")
 	userRoutes.HandleFunc("/byid", userHandler.GetUsersById).Methods("GET")
 	userRoutes.HandleFunc("/fetch", userHandler.GetUserBySkill).Methods("GET")
+	userRoutes.HandleFunc("/send-otp", userHandler.SendOtp).Methods("POST")
+	userRoutes.HandleFunc("/verify-otp", userHandler.VerifyOtp).Methods("POST")
 
 	// Protected routes
 	userRoutes.HandleFunc("/me", userHandler.GetUserByID).Methods("GET")

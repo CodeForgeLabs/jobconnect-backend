@@ -2,8 +2,11 @@ package repository
 
 import (
 	"job-connect/auth"
+	"job-connect/chapa"
 	"job-connect/domain"
+	"math/rand"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -118,4 +121,50 @@ func (r *UserRepository) GetUserBySkill(filter domain.UserFilter) ([]*domain.Use
 	}
 
 	return users, nil
+}
+
+func (r *UserRepository) SendOtp(email string) error {
+	otpCode := GenerateOtp()
+	otp := domain.Otp{
+		Email:     email,
+		OtpCode:   otpCode,
+		ExpiresAt: GetOtpExpiryTime(),
+	}
+	err := chapa.NewBrevoEmailService().SendOTP(email, otpCode)
+	if err != nil {
+		return err
+	}
+	return r.db.Create(&otp).Error
+}
+
+func (r *UserRepository) VerifyOtp(email, otp string) (bool, error) {
+	var record domain.Otp
+	err := r.db.Where("email = ? AND otp_code = ?", email, otp).First(&record).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return false, nil // OTP not found or incorrect
+		}
+		return false, err // some other error
+	}
+
+	if record.ExpiresAt.Before(time.Now()) {
+		return false, nil // OTP expired
+	}
+
+	return true, nil // OTP valid
+}
+
+func GenerateOtp() string {
+	const otpLength = 4
+	const charset = "0123456789"
+	var otp strings.Builder
+	for i := 0; i < otpLength; i++ {
+		randomIndex := rand.Intn(len(charset))
+		otp.WriteByte(charset[randomIndex])
+	}
+	return otp.String()
+}
+
+func GetOtpExpiryTime() time.Time {
+	return time.Now().Add(15 * time.Minute)
 }

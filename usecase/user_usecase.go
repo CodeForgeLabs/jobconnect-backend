@@ -44,3 +44,11 @@ func (u *UserUsecase) GetUsersByName(name string) ([]*domain.User, error) {
 func (u *UserUsecase) GetUserBySkill(filter domain.UserFilter) ([]*domain.User, error) {
 	return u.userRepo.GetUserBySkill(filter)
 }
+
+func (u *UserUsecase) SendOtp(email string) error {
+	return u.userRepo.SendOtp(email)
+}
+
+func (u *UserUsecase) VerifyOtp(email, otp string) (bool, error) {
+	return u.userRepo.VerifyOtp(email, otp)
+}

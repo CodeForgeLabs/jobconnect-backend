@@ -460,6 +460,72 @@ func (h *UserHandler) GetUserBySkill(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(users)
 }
+
+// SendOtp godoc
+// @Summary Send OTP to user email
+// @Description Generate and send a one-time password (OTP) to the specified email for verification
+// @Tags Users
+// @Produce json
+// @Param email query string true "User email"
+// @Success 200 {object} map[string]string "Otp sent successfully"
+// @Failure 400 {string} string "Email query parameter is required"
+// @Failure 500 {string} string "Failed to send OTP"
+// @Router /users/send-otp [post]
+func (h *UserHandler) SendOtp(w http.ResponseWriter, r *http.Request) {
+	email := r.URL.Query().Get("email")
+	if email == "" {
+		http.Error(w, "email query parameter is required", http.StatusBadRequest)
+		return
+	}
+	err := h.userUsecase.SendOtp(email)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"result": "Otp sent successfully",
+	})
+}
+
+// VerifyOtp godoc
+// @Summary Verify OTP for user email
+// @Description Verify the provided OTP against the stored value for the specified email
+// @Tags Users
+// @Produce json
+// @Param email query string true "User email"
+// @Param otp query string true "One-time password"
+// @Success 200 {object} map[string]string "Otp verified successfully"
+// @Failure 400 {string} string "Email and OTP query parameters are required"
+// @Failure 500 {string} string "Failed to verify OTP"
+// @Router /users/verify-otp [post]
+func (h *UserHandler) VerifyOtp(w http.ResponseWriter, r *http.Request) {
+	email := r.URL.Query().Get("email")
+	otp := r.URL.Query().Get("otp")
+	if email == "" {
+		http.Error(w, "email query parameter is required", http.StatusBadRequest)
+		return
+	}
+	if otp == "" {
+		http.Error(w, "otp query parameter is required", http.StatusBadRequest)
+		return
+	}
+
+	result, err := h.userUsecase.VerifyOtp(email, otp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if !result {
+		http.Error(w, "Invalid or expired OTP", http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"result": "Otp verified successfully",
+	})
+}
+
 func parseFloat(value string) float64 {
 	if value == "" {
 		return 0
