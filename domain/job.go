@@ -63,7 +63,7 @@ type Job struct {
 	ApplicationsCount int       `gorm:"default:0" json:"applications_count"`
 
 	Deadline   *time.Time  `json:"deadline,omitempty"`
-	Milestones []Milestone `gorm:"foreignKey:JobID" json:"milestones,omitempty"`
+	Milestones []Milestone `gorm:"foreignKey:JobID;constraint:OnDelete:CASCADE;" json:"milestones,omitempty"`
 
 	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`
@@ -74,11 +74,11 @@ type Milestone struct {
 
 	JobID uint `gorm:"index;not null" json:"job_id"`
 
-	Description string  `gorm:"type:text" json:"description"`
-	Amount      float64 `gorm:"type:decimal(10,2)" json:"amount"`
-	IsPaid      bool    `gorm:"default:false" json:"is_paid"`
-
-	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
+	Description string     `gorm:"type:text" json:"description"`
+	Amount      float64    `gorm:"type:decimal(10,2)" json:"amount"`
+	IsPaid      bool       `gorm:"default:false" json:"is_paid"`
+	Deadline    *time.Time `json:"deadline,omitempty"`
+	CreatedAt   time.Time  `gorm:"autoCreateTime" json:"created_at"`
 }
 
 type JobRepository interface {

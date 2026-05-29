@@ -77,7 +77,7 @@ func (r *Router) RegisterRoute() {
 	userRoutes.HandleFunc("/{id}/reviews", reviewHandler.ListReviewsByFreelancerID).Methods("GET")
 	userRoutes.HandleFunc("/search", userHandler.GetUsersByName).Methods("GET")
 	userRoutes.HandleFunc("/byid", userHandler.GetUsersById).Methods("GET")
-	userRoutes.HandleFunc("/search/skill", userHandler.GetUserBySkill).Methods("GET")
+	userRoutes.HandleFunc("/fetch", userHandler.GetUserBySkill).Methods("GET")
 
 	// Protected routes
 	userRoutes.HandleFunc("/me", userHandler.GetUserByID).Methods("GET")
@@ -188,7 +188,7 @@ func (r *Router) RegisterRoute() {
 		database.GetEnv("CHAPA_SECRET_KEY", ""),
 		database.GetEnv("CHAPA_BASE_URL", "https://api.chapa.co/v1"),
 	)
-	walletRepo := repository.NewWalletRepo(db, notificationRepo)
+	walletRepo := repository.NewWalletRepo(db, notificationRepo, chapaClient)
 	walletUsecase := usecase.NewWalletUsecase(walletRepo)
 	walletHandler := handler.NewWalletHandler(walletUsecase, chapaClient)
 
@@ -199,6 +199,7 @@ func (r *Router) RegisterRoute() {
 	walletRoutes.HandleFunc("/transaction/update", walletHandler.UpdateTransactionStatus).Methods("GET")
 	walletRoutes.HandleFunc("/transactions", walletHandler.FetchTransactions).Methods("GET")
 	walletRoutes.HandleFunc("/buy-connect", walletHandler.BuyConnect).Methods("POST")
+	walletRoutes.HandleFunc("/withdraw", walletHandler.WithdrawBalance).Methods("POST")
 
 }
 

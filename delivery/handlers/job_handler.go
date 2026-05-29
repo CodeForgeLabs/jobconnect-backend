@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -33,8 +34,9 @@ type CreateJobRequest struct {
 }
 
 type MilestoneRequest struct {
-	Description string  `json:"description"`
-	Amount      float64 `json:"amount"`
+	Description string     `json:"description"`
+	Amount      float64    `json:"amount"`
+	Deadline    *time.Time `json:"deadline"`
 }
 
 type UpdateJobRequest struct {
@@ -109,13 +111,13 @@ func (h *JobHandler) CreateJob(w http.ResponseWriter, r *http.Request) {
 		CreatedBy:       parseUint(userID),
 		Skills:          strings.Join(req.Skills, ","),
 	}
-
 	// ⭐ attach milestones
 	if jobType == domain.JobTypeFixed {
 		for _, m := range req.Milestones {
 			job.Milestones = append(job.Milestones, domain.Milestone{
 				Description: m.Description,
 				Amount:      m.Amount,
+				Deadline:    m.Deadline,
 			})
 		}
 	}

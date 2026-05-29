@@ -126,6 +126,7 @@ func (r *ContractRepository) CreateContract(jobId, freelancerId string, clientID
 				Description: milestone.Description,
 				Amount:      milestone.Amount,
 				Status:      domain.MilestonePending,
+				DeadLine:    milestone.Deadline,
 			}
 
 			if err := tx.Create(&contractMilestone).Error; err != nil {
@@ -386,7 +387,7 @@ func (r *ContractRepository) SubmitMilestone(request *domain.SubmitMilestoneRequ
 // 		Update("status", newStatus).Error
 // }
 
-func (r *ContractRepository) ModifyStatus(milestoneId uint, newStatus domain.ContractMilestoneStatus) error {
+func (r *ContractRepository) ModifyStatus(milestoneId uint, newStatus domain.ContractMilestoneStatus, feedback string) error {
 	// 1. Find the milestone first to get its ContractID
 	var milestone domain.ContractMilestone
 	if err := r.db.First(&milestone, milestoneId).Error; err != nil {
@@ -402,7 +403,10 @@ func (r *ContractRepository) ModifyStatus(milestoneId uint, newStatus domain.Con
 	// 3. Update the milestone status in the database
 	err := r.db.Model(&domain.ContractMilestone{}).
 		Where("id = ?", milestoneId).
-		Update("status", newStatus).Error
+		Updates(map[string]interface{}{
+			"status":          newStatus,
+			"client_feedback": feedback,
+		}).Error
 	if err != nil {
 		return fmt.Errorf("failed to update milestone status: %w", err)
 	}

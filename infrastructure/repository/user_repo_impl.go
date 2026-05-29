@@ -89,15 +89,30 @@ func (r *UserRepository) GetUsersByName(name string) ([]*domain.User, error) {
 	return users, nil
 }
 
-func (r *UserRepository) GetUserBySkill(skill string) ([]*domain.User, error) {
+func (r *UserRepository) GetUserBySkill(filter domain.UserFilter) ([]*domain.User, error) {
 	var users []*domain.User
 
-	search := "%" + strings.ToLower(skill) + "%"
+	query := r.db.Model(&domain.User{})
 
-	err := r.db.
-		Where("LOWER(skills) LIKE ?", search).
-		Find(&users).Error
+	// 1. Skills filter
+	if filter.Skills != "" {
+		search := "%" + strings.ToLower(filter.Skills) + "%"
+		query = query.Where("LOWER(skills) LIKE ?", search)
+	}
 
+	// 2. Location filter
+	if filter.Location != "" {
+		loc := "%" + strings.ToLower(filter.Location) + "%"
+		query = query.Where("LOWER(location) LIKE ?", loc)
+	}
+
+	// 3. Min hourly rate filter
+	if filter.MinHourlyRate > 0 {
+		query = query.Where("hourly_rate >= ?", filter.MinHourlyRate)
+	}
+
+	// execute
+	err := query.Find(&users).Error
 	if err != nil {
 		return nil, err
 	}

@@ -20,6 +20,13 @@ type BuyConnectInput struct {
 	Amount int `json:"amount"`
 }
 
+type TransferRequest struct {
+	Amount    string `json:"amount"`
+	Currency  string `json:"currency"`
+	BankCode  string `json:"bank_code"`
+	AccountNo string `json:"account_number"`
+}
+
 func NewWalletHandler(walletUsecase *usecase.WalletUsecase, chapaClient *chapa.Client) *WalletHandler {
 	return &WalletHandler{
 		walletUsecase: walletUsecase,
@@ -271,4 +278,47 @@ func (h *WalletHandler) BuyConnect(w http.ResponseWriter, r *http.Request) {
 		"message": "Connect purchased successfully",
 	})
 
+}
+
+// WithdrawBalance godoc
+// @Summary Withdraw balance to bank account
+// @Description Withdraw user's wallet balance to their bank account via Chapa transfer
+// @Tags Wallet
+// @Accept json
+// @Produce json
+// @Param input body TransferRequest true "Transfer Request"
+// @Success 200 {object} domain.GenericResponse
+// @Failure 400 {object} domain.ErrorResponse
+// @Failure 401 {object} domain.ErrorResponse
+// @Failure 500 {object} domain.ErrorResponse
+// @Router /wallet/withdraw [post]
+func (h *WalletHandler) WithdrawBalance(w http.ResponseWriter, r *http.Request) {
+	var request TransferRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, "Invalid input", http.StatusBadRequest)
+		return
+	}
+
+	userId, _, err := auth.GetUserFromToken(r)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	var transferRequst = domain.TransferRequest{
+		Amount:    request.Amount,
+		Currency:  request.Currency,
+		BankCode:  request.BankCode,
+		AccountNo: request.AccountNo,
+		UserId:    parseUint(userId),
+	}
+	result, err := h.walletUsecase.WithdrawBalance(transferRequst, r.Context())
+	if err != nil || !result {
+		http.Error(w, "Failed to initiate withdrawal: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message": "Transfer initiated successfully",
+		"data":    result,
+	})
 }
