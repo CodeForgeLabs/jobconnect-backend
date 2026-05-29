@@ -371,6 +371,29 @@ func (h *JobHandler) ListMyJobs(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// ListJobByClientId godoc
+// @Summary List jobs by client ID
+// @Tags Jobs
+// @Produce json
+// @Param id query int true "Client ID"
+// @Success 200 {array} domain.Job
+// @Failure 500 {object} GenericMessageResponse
+// @Router /jobs/by-client [get]
+func (h *JobHandler) ListJobByClientId(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	jobs, err := h.jobUsecase.ListJobByClientId(parseUint(id))
+	if err != nil {
+		http.Error(w, "failed to fetch jobs", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"jobs": jobs,
+	})
+}
+
 func parseUint(s string) uint {
 	v, _ := strconv.Atoi(s)
 	return uint(v)

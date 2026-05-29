@@ -33,3 +33,7 @@ func (j *JobUsecase) ListJobs(filter domain.JobFilter) ([]*domain.Job, error) {
 func (j *JobUsecase) ListMyJobs(userID uint) ([]*domain.Job, error) {
 	return j.jobRepo.ListMyJobs(userID)
 }
+
+func (j *JobUsecase) ListJobByClientId(clientID uint) ([]*domain.Job, error) {
+	return j.jobRepo.ListJobByClientId(clientID)
+}

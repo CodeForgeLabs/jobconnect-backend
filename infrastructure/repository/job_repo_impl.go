@@ -316,3 +316,19 @@ func (r *JobRepository) ListMyJobs(userID uint) ([]*domain.Job, error) {
 
 	return jobs, nil
 }
+
+func (r *JobRepository) ListJobByClientId(clientID uint) ([]*domain.Job, error) {
+	var jobs []*domain.Job
+	fmt.Println("^^^^^^^^^^^^^^^^^^^^^^^^^^")
+	// retrive all my jobs i posted so far
+	err := r.db.Where("created_by = ?", clientID).
+		Preload("Milestones").
+		Order("created_at DESC").
+		Find(&jobs).Error
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+
+	return jobs, nil
+}
