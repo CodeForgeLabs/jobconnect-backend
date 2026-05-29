@@ -73,7 +73,7 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   5184000, // 2 months in seconds
 		HttpOnly: true,    // Still keep this! It protects against JS scripts
-		Secure:   true,    // Set to false so it works on http://localhost
+		Secure:   false,   // Set to false so it works on http://localhost
 		SameSite: http.SameSiteNoneMode,
 	})
 
