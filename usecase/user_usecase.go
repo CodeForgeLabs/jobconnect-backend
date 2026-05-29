@@ -41,6 +41,6 @@ func (u *UserUsecase) GetUsersByName(name string) ([]*domain.User, error) {
 	return u.userRepo.GetUsersByName(name)
 }
 
-func (u *UserUsecase) GetUserBySkill(skill string) ([]*domain.User, error) {
-	return u.userRepo.GetUserBySkill(skill)
+func (u *UserUsecase) GetUserBySkill(filter domain.UserFilter) ([]*domain.User, error) {
+	return u.userRepo.GetUserBySkill(filter)
 }

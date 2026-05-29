@@ -42,6 +42,11 @@ type User struct {
 	UpdatedAt time.Time `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
 }
 
+type UserFilter struct {
+	Skills        string  `json:"skills"`
+	Location      string  `json:"location"`
+	MinHourlyRate float64 `json:"min_hourly_rate"`
+}
 type UserRepository interface {
 	Login(email, password string) (*User, error)
 	CreateUser(user *User) error
@@ -51,5 +56,5 @@ type UserRepository interface {
 	DeleteUser(id uint) error
 	GetUsersById(id uint) (*User, error)
 	GetUsersByName(name string) ([]*User, error)
-	GetUserBySkill(skill string) ([]*User, error)
+	GetUserBySkill(filter UserFilter) ([]*User, error)
 }

@@ -16,6 +16,9 @@ import (
 type ContractHandler struct {
 	contractUsecase *usecase.ContractUsecase
 }
+type MilestoneFeedbackRequest struct {
+	Feedback string `json:"feedback"`
+}
 type CreateContractRequest struct {
 	JobID        string `json:"job_id"`
 	FreelancerID string `json:"freelancer_id"`
@@ -179,6 +182,7 @@ func (h *ContractHandler) SubmitMilestone(w http.ResponseWriter, r *http.Request
 // @Produce json
 // @Param milestone_id path int true "Milestone ID"
 // @Param new_status query string true "New status (approved/rejected)"
+// @Param request body MilestoneFeedbackRequest true "Milestone feedback request"
 // @Success 200 {object} GenericMessageResponse
 // @Failure 400 {object} GenericMessageResponse
 // @Failure 500 {object} GenericMessageResponse
@@ -186,6 +190,7 @@ func (h *ContractHandler) SubmitMilestone(w http.ResponseWriter, r *http.Request
 func (h *ContractHandler) ModifyMilestoneStatus(w http.ResponseWriter, r *http.Request) {
 	milestoneIDStr := mux.Vars(r)["milestone_id"]
 	milestoneID, err := strconv.Atoi(milestoneIDStr)
+
 	if err != nil {
 		http.Error(w, "invalid milestone ID", http.StatusBadRequest)
 		return
@@ -197,12 +202,17 @@ func (h *ContractHandler) ModifyMilestoneStatus(w http.ResponseWriter, r *http.R
 
 		return
 	}
+	var feedback MilestoneFeedbackRequest
+	if err := json.NewDecoder(r.Body).Decode(&feedback); err != nil {
+		http.Error(w, "invalid feedback format", http.StatusBadRequest)
+		return
+	}
 	if newStatus != string(domain.MilestoneApproved) && newStatus != string(domain.MilestoneRevisionRequested) {
 		http.Error(w, "new_status must be 'APPROVED' or 'REVISION_REQUESTED'", http.StatusBadRequest)
 		return
 	}
 
-	if err := h.contractUsecase.ModifyMilestoneStatus(uint(milestoneID), domain.ContractMilestoneStatus(newStatus)); err != nil {
+	if err := h.contractUsecase.ModifyMilestoneStatus(uint(milestoneID), domain.ContractMilestoneStatus(newStatus), feedback.Feedback); err != nil {
 		http.Error(w, "failed to modify milestone status", http.StatusInternalServerError)
 		return
 	}

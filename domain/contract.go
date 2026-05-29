@@ -112,7 +112,7 @@ type ContractMilestone struct {
 
 	ClientFeedback  string     `gorm:"type:text"`
 	WorkDescription string     `gorm:"type:text"`
-	DueDate         *time.Time `json:"due_date,omitempty"`
+	DeadLine        *time.Time `json:"deadline,omitempty"`
 
 	CreatedAt time.Time `gorm:"autoCreateTime"`
 	UpdatedAt time.Time `gorm:"autoUpdateTime"`
@@ -227,7 +227,7 @@ type ContractRepository interface {
 	GetMyContracts(userID uint) ([]*MyContractResponse, error)
 	GetContractByID(id uint) (*MyContractResponse, error)
 	SubmitMilestone(request *SubmitMilestoneRequest) error
-	ModifyStatus(milestoneId uint, newStatus ContractMilestoneStatus) error
+	ModifyStatus(milestoneId uint, newStatus ContractMilestoneStatus, feedback string) error
 	ModifyContractStatus(contractId, actorUserID uint, newStatus ContractStatus) error
 
 	// log time for hourly contracts (not implemented yet)

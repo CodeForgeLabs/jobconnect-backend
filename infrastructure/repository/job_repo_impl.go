@@ -38,9 +38,10 @@ func (r *JobRepository) CreateJob(job *domain.Job) error {
 			return fmt.Errorf("failed to deduct amount from wallet: %w", err)
 		}
 
+		txRef := generateTxRef(wallet.ID)
 		tx := domain.WalletTransaction{
 			WalletID:    wallet.ID,
-			TxRef:       fmt.Sprintf("job_creation_%d_%d", userId, job.ID),
+			TxRef:       fmt.Sprintf("job_creation_%d_%d_%s", userId, job.ID, txRef),
 			Type:        domain.TxEscrow,
 			Status:      domain.TxSuccess,
 			AmountMinor: int64(*job.Budget), // convert to minor unit
@@ -110,6 +111,21 @@ func (r *JobRepository) UpdateJob(job *domain.Job) error {
 func (r *JobRepository) DeleteJob(id uint) error {
 	// Start a transaction since we are touching multiple tables
 	tx := r.db.Begin()
+	var job domain.Job
+	if err := tx.First(&job, id).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("job not found: %w", err)
+	}
+
+	var wallet domain.Wallet
+
+	if err := tx.
+		Where("user_id = ?", job.CreatedBy).
+		First(&wallet).Error; err != nil {
+
+		tx.Rollback()
+		return fmt.Errorf("client wallet not found: %w", err)
+	}
 
 	// 1. Fetch all proposals associated with this job to find who applied
 	var proposals []domain.Proposal
@@ -164,6 +180,45 @@ func (r *JobRepository) DeleteJob(id uint) error {
 		return fmt.Errorf("failed to delete job: %w", err)
 	}
 
+	// 5 refund the balance for the client
+	if err := tx.Model(&wallet).
+		Update(
+			"balance_minor",
+			gorm.Expr("balance_minor + ?", job.Budget),
+		).Error; err != nil {
+
+		tx.Rollback()
+		return fmt.Errorf("failed to refund client wallet: %w", err)
+	}
+	txRef := generateTxRef(wallet.ID)
+	walletTx := domain.WalletTransaction{
+		WalletID:    wallet.ID,
+		TxRef:       fmt.Sprintf("job_creation_%d_%d_%s", wallet.ID, job.ID, txRef),
+		Type:        domain.TxRefund,
+		Status:      domain.TxSuccess,
+		AmountMinor: int64(*job.Budget),
+		Description: "Refund for deleted job",
+		Provider:    "SYSTEM",
+	}
+
+	if err := tx.Create(&walletTx).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to create refund transaction: %w", err)
+	}
+	// notify the client
+	clientNotif := domain.Notification{
+		UserID:  job.CreatedBy,
+		Type:    domain.NotifyJobDeleted,
+		Title:   "Job Deleted",
+		Message: fmt.Sprintf("Your job '%s' was deleted. We have refunded your wallet with the original budget amount.", job.Title),
+		JobID:   &id,
+		IsRead:  false,
+	}
+
+	if err := tx.Create(&clientNotif).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to create client notification: %w", err)
+	}
 	// Commit the entire chain of actions cleanly
 	if err := tx.Commit().Error; err != nil {
 		return fmt.Errorf("failed to commit job deletion and refunds: %w", err)

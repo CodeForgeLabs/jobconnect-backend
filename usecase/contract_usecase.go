@@ -25,8 +25,8 @@ func (u *ContractUsecase) SubmitMilestone(request *domain.SubmitMilestoneRequest
 	return u.contractRepo.SubmitMilestone(request)
 }
 
-func (u *ContractUsecase) ModifyMilestoneStatus(milestoneId uint, newStatus domain.ContractMilestoneStatus) error {
-	return u.contractRepo.ModifyStatus(milestoneId, newStatus)
+func (u *ContractUsecase) ModifyMilestoneStatus(milestoneId uint, newStatus domain.ContractMilestoneStatus, feedback string) error {
+	return u.contractRepo.ModifyStatus(milestoneId, newStatus, feedback)
 }
 
 func (u *ContractUsecase) ModifyContractStatus(contractId, actorUserID uint, newStatus domain.ContractStatus) error {

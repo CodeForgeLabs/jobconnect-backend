@@ -430,29 +430,45 @@ func (h *UserHandler) GetUsersByName(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(users)
 }
 
-// GetUserBySkill godoc
-// @Summary Get users by skill
-// @Description Retrieve user profiles matching skill query
+// GetUsers godoc
+// @Summary List users with filters
+// @Description Retrieve user profiles with optional filters (skills, location, min hourly rate)
 // @Tags Users
 // @Produce json
-// @Param skill query string true "User skill"
+// @Param skills query string false "Skills (comma-separated or keyword)"
+// @Param location query string false "Location"
+// @Param min_hourly_rate query number false "Minimum hourly rate"
 // @Success 200 {array} domain.User
-// @Failure 400 {string} string "Skill required"
 // @Failure 404 {string} string "No users found"
-// @Router /users/search/skill [get]
+// @Router /users/fetch [get]
 func (h *UserHandler) GetUserBySkill(w http.ResponseWriter, r *http.Request) {
-	skill := r.URL.Query().Get("skill")
-	if skill == "" {
-		http.Error(w, "Skill query parameter is required", http.StatusBadRequest)
-		return
+
+	query := r.URL.Query()
+
+	filter := domain.UserFilter{
+		Skills:        query.Get("skills"),
+		Location:      query.Get("location"),
+		MinHourlyRate: parseFloat(query.Get("min_hourly_rate")),
 	}
-	users, err := h.userUsecase.GetUserBySkill(skill)
+
+	users, err := h.userUsecase.GetUserBySkill(filter)
 	if err != nil {
-		http.Error(w, "No users found with that skill", http.StatusNotFound)
+		http.Error(w, "No users found", http.StatusNotFound)
 		return
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(users)
+}
+func parseFloat(value string) float64 {
+	if value == "" {
+		return 0
+	}
+	v, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return 0
+	}
+	return v
 }
 
 type UpdateUserRequest struct {

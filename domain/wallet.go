@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type Wallet struct {
 	ID uint `gorm:"primaryKey"`
@@ -23,6 +26,7 @@ const (
 	TxPayment  TransactionType = "PAYMENT"
 	TxWithdraw TransactionType = "WITHDRAW"
 	TxEscrow   TransactionType = "ESCROW"
+	TxRefund   TransactionType = "REFUND"
 )
 
 const (
@@ -53,6 +57,14 @@ type WalletTransaction struct {
 	UpdatedAt time.Time
 }
 
+type TransferRequest struct {
+	Amount    string `json:"amount"`
+	Currency  string `json:"currency"`
+	BankCode  string `json:"bank_code"`
+	AccountNo string `json:"account_number"`
+	UserId    uint   `json:"user_id"`
+}
+
 type WalletRepository interface {
 	GetOrCreate(userID uint) (Wallet, error)
 
@@ -62,4 +74,5 @@ type WalletRepository interface {
 	GetTransactionByTxRef(txRef string) (WalletTransaction, error)
 	FetchTransactionsByWalletID(walletID uint) ([]WalletTransaction, error)
 	BuyConnect(amount int, userId uint) (bool, error)
+	WithdrawBalance(request TransferRequest, ctx context.Context) (bool, error)
 }

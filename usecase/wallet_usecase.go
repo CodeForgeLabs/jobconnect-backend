@@ -1,6 +1,9 @@
 package usecase
 
-import "job-connect/domain"
+import (
+	"context"
+	"job-connect/domain"
+)
 
 type WalletUsecase struct {
 	walletRepo domain.WalletRepository
@@ -33,4 +36,8 @@ func (w *WalletUsecase) FetchTransactionsByWalletID(walletID uint) ([]domain.Wal
 
 func (w *WalletUsecase) BuyConnect(amount int, userId uint) (bool, error) {
 	return w.walletRepo.BuyConnect(amount, userId)
+}
+
+func (w *WalletUsecase) WithdrawBalance(request domain.TransferRequest, ctx context.Context) (bool, error) {
+	return w.walletRepo.WithdrawBalance(request, ctx)
 }
