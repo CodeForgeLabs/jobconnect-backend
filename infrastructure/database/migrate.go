@@ -23,6 +23,7 @@ func Migrate(db *gorm.DB) error {
 		domain.WalletTransaction{},
 		domain.Review{},
 		domain.Notification{},
+		domain.Otp{},
 	)
 
 	if err != nil {

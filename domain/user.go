@@ -47,6 +47,13 @@ type UserFilter struct {
 	Location      string  `json:"location"`
 	MinHourlyRate float64 `json:"min_hourly_rate"`
 }
+type Otp struct {
+	ID        uint      `gorm:"primaryKey;autoIncrement"`
+	Email     string    `gorm:"column:email;type:varchar(255);not null"`
+	OtpCode   string    `gorm:"column:otp_code;type:varchar(10);not null"`
+	ExpiresAt time.Time `gorm:"column:expires_at;not null"`
+	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime"`
+}
 type UserRepository interface {
 	Login(email, password string) (*User, error)
 	CreateUser(user *User) error
@@ -57,4 +64,6 @@ type UserRepository interface {
 	GetUsersById(id uint) (*User, error)
 	GetUsersByName(name string) ([]*User, error)
 	GetUserBySkill(filter UserFilter) ([]*User, error)
+	SendOtp(email string) error
+	VerifyOtp(email, otp string) (bool, error)
 }
