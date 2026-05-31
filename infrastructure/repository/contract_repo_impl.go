@@ -694,7 +694,9 @@ func (r *ContractRepository) StartWorkSession(contractId, freelancerId uint) (st
 	now := time.Now()
 	start := now
 	end := now.Add(3 * time.Hour)
-
+	fmt.Println("********************************************")
+	fmt.Println(client.Email)
+	fmt.Println(freelancer.Email)
 	result, err := calendarService.CreateInvite(
 		chapa.CalendarInviteInput{
 			Summary:     "Work Session Started",
