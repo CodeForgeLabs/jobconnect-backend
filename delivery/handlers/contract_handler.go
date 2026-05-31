@@ -307,7 +307,7 @@ func (h *ContractHandler) StartWorkSession(w http.ResponseWriter, r *http.Reques
 	}
 	link, err := h.contractUsecase.StartWorkSession(req.ContractID, parseUint(userID))
 	if err != nil {
-		http.Error(w, "failed to start work session", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
