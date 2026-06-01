@@ -120,7 +120,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	err = h.userUsecase.CreateUser(user)
 	if err != nil {
-		http.Error(w, "Failed to create user", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	// set cookie after successful registration (optional, can also require login after registration)
@@ -165,7 +165,7 @@ func (h *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {
 	}
 	user, err := h.userUsecase.GetUserByID(uint(uid))
 	if err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -190,7 +190,7 @@ func (h *UserHandler) GetUserByEmail(w http.ResponseWriter, r *http.Request) {
 	}
 	user, err := h.userUsecase.GetUserByEmail(email)
 	if err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -224,7 +224,7 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	existingUser, err := h.userUsecase.GetUserByID(uint(uid))
 	if err != nil {
-		http.Error(w, "user not found", http.StatusNotFound)
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
@@ -287,7 +287,7 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.userUsecase.UpdateUser(existingUser); err != nil {
-		http.Error(w, "failed to update user", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -318,7 +318,7 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 	err = h.userUsecase.DeleteUser(uint(uid))
 	if err != nil {
-		http.Error(w, "Failed to delete user", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -398,7 +398,7 @@ func (h *UserHandler) GetUsersById(w http.ResponseWriter, r *http.Request) {
 	}
 	user, err := h.userUsecase.GetUsersById(uint(id))
 	if err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -423,7 +423,7 @@ func (h *UserHandler) GetUsersByName(w http.ResponseWriter, r *http.Request) {
 	}
 	users, err := h.userUsecase.GetUsersByName(name)
 	if err != nil {
-		http.Error(w, "No users found", http.StatusNotFound)
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -453,7 +453,7 @@ func (h *UserHandler) GetUserBySkill(w http.ResponseWriter, r *http.Request) {
 
 	users, err := h.userUsecase.GetUserBySkill(filter)
 	if err != nil {
-		http.Error(w, "No users found", http.StatusNotFound)
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 

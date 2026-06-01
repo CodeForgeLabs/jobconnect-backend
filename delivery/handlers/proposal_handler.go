@@ -89,7 +89,7 @@ func (h *ProposalHandler) CreateProposal(w http.ResponseWriter, r *http.Request)
 	}
 
 	if err := h.propUsecase.CreateProposal(proposal); err != nil {
-		http.Error(w, "failed to create proposal", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -120,7 +120,7 @@ func (h *ProposalHandler) GetProposalByID(w http.ResponseWriter, r *http.Request
 	}
 	proposal, err := h.propUsecase.GetProposalByID(uint(idUint))
 	if err != nil {
-		http.Error(w, "proposal not found", http.StatusNotFound)
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
@@ -199,7 +199,7 @@ func (h *ProposalHandler) UpdateProposal(w http.ResponseWriter, r *http.Request)
 
 	proposal, err := h.propUsecase.GetProposalByID(uint(idUint))
 	if err != nil {
-		http.Error(w, "proposal not found", http.StatusNotFound)
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
@@ -248,7 +248,7 @@ func (h *ProposalHandler) DeleteProposal(w http.ResponseWriter, r *http.Request)
 	}
 
 	if err := h.propUsecase.DeleteProposal(uint(idUint)); err != nil {
-		http.Error(w, "failed to delete proposal", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -278,7 +278,7 @@ func (h *ProposalHandler) ListMyProposals(w http.ResponseWriter, r *http.Request
 
 	proposals, err := h.propUsecase.ListMyProposals(parseUint(userID))
 	if err != nil {
-		http.Error(w, "failed to list proposals", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 

@@ -3,16 +3,20 @@ package repository
 import (
 	"fmt"
 	"job-connect/domain"
+	"sort"
+	"strings"
+	"time"
 
 	"gorm.io/gorm"
 )
 
 type JobRepository struct {
-	db *gorm.DB
+	db               *gorm.DB
+	notificationRepo domain.NotificationRepository
 }
 
-func NewJobRepository(db *gorm.DB) *JobRepository {
-	return &JobRepository{db: db}
+func NewJobRepository(db *gorm.DB, notificationRepo domain.NotificationRepository) *JobRepository {
+	return &JobRepository{db: db, notificationRepo: notificationRepo}
 }
 
 func (r *JobRepository) CreateJob(job *domain.Job) error {
@@ -219,6 +223,11 @@ func (r *JobRepository) DeleteJob(id uint) error {
 		tx.Rollback()
 		return fmt.Errorf("failed to create client notification: %w", err)
 	}
+	// After successful commit, dispatch all notifications via WebSockets
+	for _, notif := range notificationsToDispatch {
+		r.notificationRepo.CreateNotification(&notif) // This will also send via WebSocket
+	}
+	r.notificationRepo.CreateNotification(&clientNotif) // Notify the client as well
 	// Commit the entire chain of actions cleanly
 	if err := tx.Commit().Error; err != nil {
 		return fmt.Errorf("failed to commit job deletion and refunds: %w", err)
@@ -229,7 +238,9 @@ func (r *JobRepository) DeleteJob(id uint) error {
 func (r *JobRepository) ListJobs(filter domain.JobFilter) ([]*domain.Job, error) {
 	var jobs []*domain.Job
 
-	query := r.db.Model(&domain.Job{})
+	query := r.db.Model(&domain.Job{}).
+		Where("status = ?", domain.StatusOpen).
+		Where("is_private = ?", false)
 
 	// ======================
 	// TEXT SEARCH FILTERS
@@ -302,6 +313,298 @@ func (r *JobRepository) ListJobs(filter domain.JobFilter) ([]*domain.Job, error)
 	return jobs, nil
 }
 
+func (r *JobRepository) ListRecommendedJobs(filter domain.JobFilter) ([]*domain.Job, error) {
+	var jobs []*domain.Job
+
+	query := r.db.Model(&domain.Job{})
+
+	// ======================
+	// ONLY PUBLIC OPEN JOBS
+	// ======================
+	query = query.
+		Where("status = ?", domain.StatusOpen).
+		Where("is_private = ?", false)
+
+	// ======================
+	// TEXT FILTERS
+	// ======================
+	if filter.Title != "" {
+		query = query.Where(
+			"title ILIKE ?",
+			"%"+filter.Title+"%",
+		)
+	}
+
+	if filter.Company != "" {
+		query = query.Where(
+			"company_name ILIKE ?",
+			"%"+filter.Company+"%",
+		)
+	}
+
+	if filter.Location != "" {
+		query = query.Where(
+			"location ILIKE ?",
+			"%"+filter.Location+"%",
+		)
+	}
+
+	if filter.Category != "" {
+		query = query.Where(
+			"category = ?",
+			filter.Category,
+		)
+	}
+
+	// ======================
+	// ENUM FILTERS
+	// ======================
+	if filter.JobType != "" {
+		query = query.Where(
+			"job_type = ?",
+			filter.JobType,
+		)
+	}
+
+	if filter.ExperienceLevel != "" {
+		query = query.Where(
+			"experience_level = ?",
+			filter.ExperienceLevel,
+		)
+	}
+
+	if filter.WorkMode != "" {
+		query = query.Where(
+			"work_mode = ?",
+			filter.WorkMode,
+		)
+	}
+
+	// ======================
+	// BUDGET FILTERS
+	// ======================
+	if filter.BudgetMin != nil {
+		query = query.Where(
+			"budget >= ?",
+			*filter.BudgetMin,
+		)
+	}
+
+	if filter.HourlyRateMin != nil {
+		query = query.Where(
+			"hourly_rate >= ?",
+			*filter.HourlyRateMin,
+		)
+	}
+
+	// ======================
+	// SKILL FILTERS
+	// ======================
+	if len(filter.Skills) > 0 {
+		for _, skill := range filter.Skills {
+			query = query.Where(
+				"skills ILIKE ?",
+				"%"+skill+"%",
+			)
+		}
+	}
+
+	// ======================
+	// LOAD JOBS
+	// ======================
+	if err := query.
+		Preload("Milestones").
+		Find(&jobs).Error; err != nil {
+		return nil, err
+	}
+
+	// ======================
+	// NO RECOMMENDATION MODE
+	// ======================
+	if filter.RecommendedFor == nil {
+		sort.Slice(jobs, func(i, j int) bool {
+			return jobs[i].CreatedAt.After(
+				jobs[j].CreatedAt,
+			)
+		})
+
+		return jobs, nil
+	}
+
+	// ======================
+	// LOAD USER
+	// ======================
+	var user domain.User
+
+	if err := r.db.
+		First(&user, *filter.RecommendedFor).
+		Error; err != nil {
+		return nil, err
+	}
+
+	// ======================
+	// USER SKILLS
+	// ======================
+	userSkills := []string{}
+
+	if user.Skills != "" {
+		for _, skill := range strings.Split(
+			user.Skills,
+			",",
+		) {
+			userSkills = append(
+				userSkills,
+				strings.TrimSpace(
+					strings.ToLower(skill),
+				),
+			)
+		}
+	}
+
+	// ======================
+	// USER PROPOSALS
+	// ======================
+	var proposals []domain.Proposal
+
+	if err := r.db.
+		Where("sender_id = ?", user.ID).
+		Find(&proposals).Error; err != nil {
+		return nil, err
+	}
+
+	proposedJobs := make(map[uint]bool)
+
+	for _, proposal := range proposals {
+		proposedJobs[proposal.JobID] = true
+	}
+
+	// ======================
+	// SCORE JOBS
+	// ======================
+	type scoredJob struct {
+		job   *domain.Job
+		score int
+	}
+
+	var scoredJobs []scoredJob
+
+	for _, job := range jobs {
+
+		if job.CreatedBy == user.ID {
+			continue
+		}
+
+		score := 0
+
+		// ----------
+		// Skill score
+		// ----------
+		jobSkills := []string{}
+
+		if job.Skills != "" {
+			for _, skill := range strings.Split(
+				job.Skills,
+				",",
+			) {
+				jobSkills = append(
+					jobSkills,
+					strings.TrimSpace(
+						strings.ToLower(skill),
+					),
+				)
+			}
+		}
+
+		for _, userSkill := range userSkills {
+			for _, jobSkill := range jobSkills {
+				if userSkill == jobSkill {
+					score += 10
+				}
+			}
+		}
+
+		// ----------
+		// Location bonus
+		// ----------
+		if user.Location != "" &&
+			strings.EqualFold(
+				strings.TrimSpace(user.Location),
+				strings.TrimSpace(job.Location),
+			) {
+			score += 5
+		}
+
+		// ----------
+		// Remote bonus
+		// ----------
+		if job.WorkMode == domain.WorkModeRemote {
+			score += 3
+		}
+
+		// ----------
+		// Recent jobs bonus
+		// ----------
+		if time.Since(job.CreatedAt) < 72*time.Hour {
+			score += 5
+		}
+
+		// ----------
+		// Already applied penalty
+		// ----------
+		if proposedJobs[job.ID] {
+			score -= 20
+		}
+
+		scoredJobs = append(
+			scoredJobs,
+			scoredJob{
+				job:   job,
+				score: score,
+			},
+		)
+	}
+
+	// ======================
+	// SORT BY SCORE
+	// ======================
+	sort.Slice(
+		scoredJobs,
+		func(i, j int) bool {
+
+			if scoredJobs[i].score ==
+				scoredJobs[j].score {
+
+				return scoredJobs[i].
+					job.CreatedAt.After(
+					scoredJobs[j].
+						job.CreatedAt,
+				)
+			}
+
+			return scoredJobs[i].score >
+				scoredJobs[j].score
+		},
+	)
+
+	// ======================
+	// EXTRACT JOBS
+	// ======================
+	recommendedJobs := make(
+		[]*domain.Job,
+		0,
+		len(scoredJobs),
+	)
+
+	for _, item := range scoredJobs {
+		recommendedJobs = append(
+			recommendedJobs,
+			item.job,
+		)
+	}
+
+	return recommendedJobs, nil
+}
+
 func (r *JobRepository) ListMyJobs(userID uint) ([]*domain.Job, error) {
 	var jobs []*domain.Job
 
@@ -331,4 +634,48 @@ func (r *JobRepository) ListJobByClientId(clientID uint) ([]*domain.Job, error) 
 	}
 
 	return jobs, nil
+}
+
+func (r *JobRepository) InviteUserToJob(jobID uint, userID uint, clientId uint) error {
+	// check first if the job is private and belongs to the client and also he doesn't invited someone else before
+	var job domain.Job
+	err := r.db.First(&job, jobID).Error
+	if err != nil {
+		return fmt.Errorf("job not found: %w", err)
+	}
+
+	if !job.IsPrivate {
+		return fmt.Errorf("cannot invite user to a public job")
+	}
+
+	if job.CreatedBy != clientId {
+		return fmt.Errorf("only the client who created the job can invite users")
+	}
+
+	if job.InvitedUserId != 0 {
+		return fmt.Errorf("a user has already been invited to this job")
+	}
+	// Update the job record to set the invited_user_id
+	err = r.db.Model(&domain.Job{}).
+		Where("id = ?", jobID).
+		Update("invited_user_id", userID).Error
+	if err != nil {
+		return fmt.Errorf("failed to invite user to job: %w", err)
+	}
+
+	// Optionally, you can also create a notification for the invited user here
+	notification := domain.Notification{
+		UserID:  userID,
+		Type:    domain.NotifyInvitationToJob,
+		Title:   "You've been invited to a job",
+		Message: fmt.Sprintf("You have been invited to apply for the job '%s'. Check it out!", job.Title),
+		JobID:   &jobID,
+	}
+
+	err = r.notificationRepo.CreateNotification(&notification)
+	if err != nil {
+		return fmt.Errorf("failed to create notification for invited user: %w", err)
+	}
+
+	return nil
 }

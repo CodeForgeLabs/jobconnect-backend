@@ -16,6 +16,22 @@ func NewProposalRepository(db *gorm.DB) *ProposalRepository {
 }
 
 func (r *ProposalRepository) CreateProposal(proposal *domain.Proposal) error {
+	// fetch job and check if it is private
+	// if it is private check who is invited if that user is the invited one create the propsal otherwise return error
+	var job domain.Job
+	err := r.db.First(&job, proposal.JobID).Error
+	if err != nil {
+		return fmt.Errorf("job not found")
+	}
+
+	if job.IsPrivate {
+		if job.InvitedUserId == 0 {
+			return fmt.Errorf("this job is private but no user is invited yet")
+		}
+		if job.InvitedUserId != proposal.SenderID {
+			return fmt.Errorf("you are not invited to this job")
+		}
+	}
 
 	tx := r.db.Begin()
 

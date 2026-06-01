@@ -37,3 +37,10 @@ func (j *JobUsecase) ListMyJobs(userID uint) ([]*domain.Job, error) {
 func (j *JobUsecase) ListJobByClientId(clientID uint) ([]*domain.Job, error) {
 	return j.jobRepo.ListJobByClientId(clientID)
 }
+
+func (j *JobUsecase) InviteUserToJob(jobID uint, userID uint, clientId uint) error {
+	return j.jobRepo.InviteUserToJob(jobID, userID, clientId)
+}
+func (j *JobUsecase) ListRecommendedJobs(filter domain.JobFilter) ([]*domain.Job, error) {
+	return j.jobRepo.ListRecommendedJobs(filter)
+}

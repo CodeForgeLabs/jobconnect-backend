@@ -32,10 +32,10 @@ func (r *Router) RegisterRoute() {
 	fmt.Println("Connected to database")
 
 	// FOR DEVELOPMENT ONLY
-	// err = database.Migrate(db)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	err = database.Migrate(db)
+	if err != nil {
+		log.Fatal(err)
+	}
 	fmt.Println("Database migrated successfully")
 
 	// USER ROUTES
@@ -93,7 +93,7 @@ func (r *Router) RegisterRoute() {
 	// =========================
 	jobRoutes := api.PathPrefix("/jobs").Subrouter()
 
-	jobRepo := repository.NewJobRepository(db)
+	jobRepo := repository.NewJobRepository(db, notificationRepo)
 	jobUsecase := usecase.NewJobUsecase(jobRepo)
 	jobHandler := handler.NewJobHandler(jobUsecase)
 
@@ -113,6 +113,8 @@ func (r *Router) RegisterRoute() {
 	jobRoutes.HandleFunc("/{id}", jobHandler.GetJobByID).Methods("GET")
 	jobRoutes.HandleFunc("/{id}", jobHandler.UpdateJob).Methods("PATCH")
 	jobRoutes.HandleFunc("/{id}", jobHandler.DeleteJob).Methods("DELETE")
+	jobRoutes.HandleFunc("/invite", jobHandler.InviteUserToJob).Methods("POST")
+	jobRoutes.HandleFunc("/fetch/recommended", jobHandler.ListRecommendedJobs).Methods("GET")
 	// =========================
 	// PROPOSAL MODULE
 	// =========================
