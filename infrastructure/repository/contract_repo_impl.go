@@ -592,51 +592,141 @@ func (r *ContractRepository) ModifyContractStatus(contractId, actorUserID uint, 
 			return err
 		}
 
-		var wallet domain.Wallet
-		if err := txCtx.Where("user_id = ?", contract.ClientID).First(&wallet).Error; err != nil {
+		var clientWallet domain.Wallet
+		if err := txCtx.Where("user_id = ?", contract.ClientID).
+			First(&clientWallet).Error; err != nil {
+			txCtx.Rollback()
+			return err
+		}
+
+		var freelancerWallet domain.Wallet
+		if err := txCtx.Where("user_id = ?", contract.FreelancerID).
+			First(&freelancerWallet).Error; err != nil {
 			txCtx.Rollback()
 			return err
 		}
 
 		for _, m := range milestones {
-			// Skip milestones that are already approved or paid (Only refund unapproved/unpaid ones)
-			if m.Status == domain.MilestoneApproved || m.Status == domain.MilestonePaid {
+
+			// already settled
+			if m.Status == domain.MilestoneApproved ||
+				m.Status == domain.MilestonePaid {
 				continue
 			}
 
-			refundMinor := int64(m.Amount)
+			amountMinor := int64(m.Amount)
 
-			// A. Refund wallet
-			if err := txCtx.Model(&wallet).
-				Update("balance_minor", gorm.Expr("balance_minor + ?", refundMinor)).Error; err != nil {
-				txCtx.Rollback()
-				return err
+			var refundToClient int64
+			var payToFreelancer int64
+
+			switch m.Status {
+
+			case domain.MilestonePending:
+				refundToClient = amountMinor
+				payToFreelancer = 0
+
+			case domain.MilestoneInProgress,
+				domain.MilestoneSubmitted,
+				domain.MilestoneRevisionRequested:
+
+				refundToClient = amountMinor / 2
+				payToFreelancer = amountMinor - refundToClient
+
+			default:
+				refundToClient = amountMinor
 			}
 
-			// B. Create transaction record
-			txRecord := domain.WalletTransaction{
-				WalletID: wallet.ID,
-				TxRef: fmt.Sprintf(
-					"WEEKLY-PAY-%d-%d-freelancer",
-					contractId,
-					time.Now().UnixNano(),
-				),
-				Type:        domain.TxRefund,
-				Status:      domain.TxSuccess,
-				AmountMinor: refundMinor,
-				Description: fmt.Sprintf("Refund for cancelled contract %d milestone %d", contractId, m.ID),
-				Provider:    "SYSTEM",
+			// =====================
+			// REFUND CLIENT
+			// =====================
+			if refundToClient > 0 {
+
+				if err := txCtx.Model(&clientWallet).
+					Update(
+						"balance_minor",
+						gorm.Expr(
+							"balance_minor + ?",
+							refundToClient,
+						),
+					).Error; err != nil {
+					txCtx.Rollback()
+					return err
+				}
+
+				clientTx := domain.WalletTransaction{
+					WalletID: clientWallet.ID,
+					TxRef: fmt.Sprintf(
+						"CONTRACT-CANCEL-REFUND-%d-%d",
+						contract.ID,
+						time.Now().UnixNano(),
+					),
+					Type:        domain.TxRefund,
+					Status:      domain.TxSuccess,
+					AmountMinor: refundToClient,
+					Description: fmt.Sprintf(
+						"Refund for cancelled contract %d milestone %d",
+						contract.ID,
+						m.ID,
+					),
+					Provider: "SYSTEM",
+				}
+
+				if err := txCtx.Create(&clientTx).Error; err != nil {
+					txCtx.Rollback()
+					return err
+				}
 			}
 
-			if err := txCtx.Create(&txRecord).Error; err != nil {
-				txCtx.Rollback()
-				return err
+			// =====================
+			// PAY FREELANCER
+			// =====================
+			if payToFreelancer > 0 {
+
+				if err := txCtx.Model(&freelancerWallet).
+					Update(
+						"balance_minor",
+						gorm.Expr(
+							"balance_minor + ?",
+							payToFreelancer,
+						),
+					).Error; err != nil {
+					txCtx.Rollback()
+					return err
+				}
+
+				freelancerTx := domain.WalletTransaction{
+					WalletID: freelancerWallet.ID,
+					TxRef: fmt.Sprintf(
+						"CONTRACT-CANCEL-PAYOUT-%d-%d",
+						contract.ID,
+						time.Now().UnixNano(),
+					),
+					Type:        domain.TxPayment,
+					Status:      domain.TxSuccess,
+					AmountMinor: payToFreelancer,
+					Description: fmt.Sprintf(
+						"50%% compensation for cancelled contract %d milestone %d",
+						contract.ID,
+						m.ID,
+					),
+					Provider: "SYSTEM",
+				}
+
+				if err := txCtx.Create(&freelancerTx).Error; err != nil {
+					txCtx.Rollback()
+					return err
+				}
 			}
 
-			// C. Mark milestone as refunded
+			// =====================
+			// MARK MILESTONE
+			// =====================
 			if err := txCtx.Model(&domain.ContractMilestone{}).
 				Where("id = ?", m.ID).
-				Update("status", "REFUNDED").Error; err != nil {
+				Update(
+					"status",
+					domain.MilestonePaid,
+				).Error; err != nil {
 				txCtx.Rollback()
 				return err
 			}
