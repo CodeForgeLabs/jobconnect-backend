@@ -94,6 +94,7 @@ type JobRepository interface {
 	ListMyJobs(userID uint) ([]*Job, error)
 	ListJobByClientId(clientID uint) ([]*Job, error)
 	ListRecommendedJobs(filter JobFilter) ([]*Job, error)
+	GetGotInvitedJobs(userID uint) ([]*Job, error)
 }
 
 type JobFilter struct {

@@ -44,3 +44,7 @@ func (j *JobUsecase) InviteUserToJob(jobID uint, userID uint, clientId uint) err
 func (j *JobUsecase) ListRecommendedJobs(filter domain.JobFilter) ([]*domain.Job, error) {
 	return j.jobRepo.ListRecommendedJobs(filter)
 }
+
+func (j *JobUsecase) GetGotInvitedJobs(userID uint) ([]*domain.Job, error) {
+	return j.jobRepo.GetGotInvitedJobs(userID)
+}
