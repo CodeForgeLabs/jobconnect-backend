@@ -114,10 +114,36 @@ func (r *UserRepository) GetUserBySkill(filter domain.UserFilter) ([]*domain.Use
 		query = query.Where("hourly_rate >= ?", filter.MinHourlyRate)
 	}
 
-	// execute
+	// fetch users
 	err := query.Find(&users).Error
 	if err != nil {
 		return nil, err
+	}
+
+	// 🔥 brute force rating calculation per user
+	for _, u := range users {
+		var stats struct {
+			Avg   *float64
+			Count int64
+		}
+
+		err := r.db.Model(&domain.Review{}).
+			Select("AVG(rating) as avg, COUNT(*) as count").
+			Where("freelancer_id = ?", u.ID).
+			Scan(&stats).Error
+
+		if err != nil {
+			return nil, err
+		}
+
+		// if no reviews
+		if stats.Count == 0 || stats.Avg == nil {
+			u.AverageRating = 0
+			u.TotalReviews = 0
+		} else {
+			u.AverageRating = *stats.Avg
+			u.TotalReviews = int(stats.Count)
+		}
 	}
 
 	return users, nil
