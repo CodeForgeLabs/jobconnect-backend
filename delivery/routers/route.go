@@ -115,6 +115,7 @@ func (r *Router) RegisterRoute() {
 	jobRoutes.HandleFunc("/{id}", jobHandler.DeleteJob).Methods("DELETE")
 	jobRoutes.HandleFunc("/invite", jobHandler.InviteUserToJob).Methods("POST")
 	jobRoutes.HandleFunc("/fetch/recommended", jobHandler.ListRecommendedJobs).Methods("GET")
+	jobRoutes.HandleFunc("/fetch/invited", jobHandler.GetGotInvitedJobs).Methods("GET")
 	// =========================
 	// PROPOSAL MODULE
 	// =========================

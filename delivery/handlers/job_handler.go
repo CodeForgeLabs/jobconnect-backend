@@ -537,3 +537,31 @@ func parseUint(s string) uint {
 	v, _ := strconv.Atoi(s)
 	return uint(v)
 }
+
+// GetGotInvitedJobs godoc
+// @Summary List jobs the user got invited to
+// @Tags Jobs
+// @Produce json
+// @Success 200 {array} domain.Job
+// @Failure 401 {object} GenericMessageResponse
+// @Failure 500 {object} GenericMessageResponse
+// @Router /jobs/fetch/invited [get]
+func (h *JobHandler) GetGotInvitedJobs(w http.ResponseWriter, r *http.Request) {
+	userID, _, err := auth.GetUserFromToken(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	jobs, err := h.jobUsecase.GetGotInvitedJobs(parseUint(userID))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"jobs": jobs,
+	})
+}

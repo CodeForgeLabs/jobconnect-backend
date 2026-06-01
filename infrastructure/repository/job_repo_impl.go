@@ -679,3 +679,17 @@ func (r *JobRepository) InviteUserToJob(jobID uint, userID uint, clientId uint) 
 
 	return nil
 }
+
+func (r *JobRepository) GetGotInvitedJobs(userID uint) ([]*domain.Job, error) {
+	var jobs []*domain.Job
+
+	err := r.db.Where("invited_user_id = ?", userID).
+		Preload("Milestones").
+		Order("created_at DESC").
+		Find(&jobs).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return jobs, nil
+}
