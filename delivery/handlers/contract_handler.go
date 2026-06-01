@@ -106,7 +106,7 @@ func (h *ContractHandler) GetMyContracts(w http.ResponseWriter, r *http.Request)
 	println("*******************************")
 	contracts, err := h.contractUsecase.GetMyContracts(parseUint(userID))
 	if err != nil {
-		http.Error(w, "failed to get contracts", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -137,7 +137,7 @@ func (h *ContractHandler) GetContractByID(w http.ResponseWriter, r *http.Request
 
 	contract, err := h.contractUsecase.GetContractByID(uint(idUint))
 	if err != nil {
-		http.Error(w, "contract not found", http.StatusNotFound)
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
@@ -166,7 +166,7 @@ func (h *ContractHandler) SubmitMilestone(w http.ResponseWriter, r *http.Request
 	}
 
 	if err := h.contractUsecase.SubmitMilestone(&req); err != nil {
-		http.Error(w, "failed to submit milestone", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -213,7 +213,7 @@ func (h *ContractHandler) ModifyMilestoneStatus(w http.ResponseWriter, r *http.R
 	}
 
 	if err := h.contractUsecase.ModifyMilestoneStatus(uint(milestoneID), domain.ContractMilestoneStatus(newStatus), feedback.Feedback); err != nil {
-		http.Error(w, "failed to modify milestone status", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -271,7 +271,7 @@ func (h *ContractHandler) ModifyContractStatus(w http.ResponseWriter, r *http.Re
 				http.Error(w, "contract not found", http.StatusNotFound)
 				return
 			}
-			http.Error(w, "failed to modify contract status", http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 		return
 	}
@@ -341,7 +341,7 @@ func (h *ContractHandler) EndWorkSession(w http.ResponseWriter, r *http.Request)
 	}
 
 	if err := h.contractUsecase.EndWorkSession(req.ContractID, parseUint(userID)); err != nil {
-		http.Error(w, "failed to end work session", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -376,7 +376,7 @@ func (h *ContractHandler) FetchTimeLogs(w http.ResponseWriter, r *http.Request) 
 
 	timeLogs, err := h.contractUsecase.FetchTimeLogs(req.ContractID)
 	if err != nil {
-		http.Error(w, "failed to fetch time logs", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -413,7 +413,7 @@ func (h *ContractHandler) FetchTimeElapsed(w http.ResponseWriter, r *http.Reques
 
 	timeElapsed, err := h.contractUsecase.FetchTimeElapsed(req.ContractID)
 	if err != nil {
-		http.Error(w, "failed to fetch time elapsed", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -450,7 +450,7 @@ func (h *ContractHandler) FetchWeeklyHours(w http.ResponseWriter, r *http.Reques
 
 	weeklyHours, err := h.contractUsecase.FetchWeeklyHours(req.ContractID)
 	if err != nil {
-		http.Error(w, "failed to fetch weekly hours", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 

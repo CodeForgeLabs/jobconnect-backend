@@ -13,6 +13,11 @@ import (
 	"github.com/gorilla/mux"
 )
 
+type InviteUserRequest struct {
+	UserID uint `json:"user_id"`
+	JobID  uint `json:"job_id"`
+}
+
 type CreateJobRequest struct {
 	Title           string `json:"title"`
 	Description     string `json:"description"`
@@ -83,7 +88,7 @@ func (h *JobHandler) CreateJob(w http.ResponseWriter, r *http.Request) {
 
 	var req CreateJobRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -147,7 +152,7 @@ func (h *JobHandler) GetJobByID(w http.ResponseWriter, r *http.Request) {
 
 	job, err := h.jobUsecase.GetJobByID(uint(id))
 	if err != nil {
-		http.Error(w, "job not found", http.StatusNotFound)
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -171,13 +176,13 @@ func (h *JobHandler) UpdateJob(w http.ResponseWriter, r *http.Request) {
 
 	job, err := h.jobUsecase.GetJobByID(uint(id))
 	if err != nil {
-		http.Error(w, "job not found", http.StatusNotFound)
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
 	var req UpdateJobRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -225,7 +230,7 @@ func (h *JobHandler) UpdateJob(w http.ResponseWriter, r *http.Request) {
 		job.Status = domain.JobStatus(*req.Status)
 	}
 	if err := h.jobUsecase.UpdateJob(job); err != nil {
-		http.Error(w, "update failed", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -248,7 +253,7 @@ func (h *JobHandler) DeleteJob(w http.ResponseWriter, r *http.Request) {
 
 	err := h.jobUsecase.DeleteJob(uint(id))
 	if err != nil {
-		http.Error(w, "delete failed", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -331,7 +336,7 @@ func (h *JobHandler) ListJobs(w http.ResponseWriter, r *http.Request) {
 	// ======================
 	jobs, err := h.jobUsecase.ListJobs(filter)
 	if err != nil {
-		http.Error(w, "failed to fetch jobs", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -360,7 +365,7 @@ func (h *JobHandler) ListMyJobs(w http.ResponseWriter, r *http.Request) {
 
 	jobs, err := h.jobUsecase.ListMyJobs(parseUint(userID))
 	if err != nil {
-		http.Error(w, "failed to fetch jobs", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -383,7 +388,7 @@ func (h *JobHandler) ListJobByClientId(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 	jobs, err := h.jobUsecase.ListJobByClientId(parseUint(id))
 	if err != nil {
-		http.Error(w, "failed to fetch jobs", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -394,6 +399,135 @@ func (h *JobHandler) ListJobByClientId(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// InviteUserToJob godoc
+// @Summary Invite user to job
+// @Tags Jobs
+// @Accept json
+// @Produce json
+// @Param request body handlers.InviteUserRequest true "Invite User to Job"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} GenericMessageResponse
+// @Failure 401 {object} GenericMessageResponse
+// @Router /jobs/invite [post]
+func (h *JobHandler) InviteUserToJob(w http.ResponseWriter, r *http.Request) {
+	userID, _, err := auth.GetUserFromToken(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var req InviteUserRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err = h.jobUsecase.InviteUserToJob(req.JobID, req.UserID, parseUint(userID))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message": "user invited to job",
+	})
+}
+
+// ListRecommendedJobs godoc
+// @Summary List recommended jobs for the authenticated user
+// @Tags Jobs
+// @Produce json
+// @Param title query string false "Title"
+// @Param category query string false "Category"
+// @Param job_type query string false "Job Type"
+// @Param work_mode query string false "Work Mode"
+// @Param experience_level query string false "Experience Level"
+// @Param budget_min query number false "Minimum Budget"
+// @Success 200 {array} domain.Job
+// @Failure 401 {object} GenericMessageResponse
+// @Failure 500 {object} GenericMessageResponse
+// @Router /jobs/fetch/recommended [get]
+func (h *JobHandler) ListRecommendedJobs(w http.ResponseWriter, r *http.Request) {
+	userID, _, err := auth.GetUserFromToken(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	query := r.URL.Query()
+	filter := domain.JobFilter{
+		RecommendedFor: func() *uint {
+			v := parseUint(userID)
+			return &v
+		}(),
+		Title:    query.Get("title"),
+		Company:  query.Get("company"),
+		Location: query.Get("location"),
+		Category: query.Get("category"),
+
+		ExperienceLevel: domain.ParseExperienceLevel(query.Get("experience_level")),
+		JobType:         domain.ParseJobType(query.Get("job_type")),
+		WorkMode:        domain.ParseWorkMode(query.Get("work_mode")),
+		Status:          domain.ParseJobStatus(query.Get("status")),
+	}
+
+	// ======================
+	// ENUM FILTERS
+	// ======================
+	if jt := query.Get("job_type"); jt != "" {
+		filter.JobType = domain.JobType(jt)
+	}
+
+	if el := query.Get("experience_level"); el != "" {
+		filter.ExperienceLevel = domain.ParseExperienceLevel(el)
+	}
+
+	if wm := query.Get("work_mode"); wm != "" {
+		filter.WorkMode = domain.ParseWorkMode(wm)
+	}
+
+	if st := query.Get("status"); st != "" {
+		filter.Status = domain.ParseJobStatus(st)
+	}
+
+	// ======================
+	// SKILLS (comma-separated)
+	// ======================
+	if skills := query.Get("skills"); skills != "" {
+		filter.Skills = strings.Split(skills, ",")
+	}
+
+	// ======================
+	// NUMERIC FILTERS
+	// ======================
+	if budgetMin := query.Get("budget_min"); budgetMin != "" {
+		if v, err := strconv.ParseFloat(budgetMin, 64); err == nil {
+			filter.BudgetMin = &v
+		}
+	}
+
+	if hourlyMin := query.Get("hourly_rate_min"); hourlyMin != "" {
+		if v, err := strconv.ParseFloat(hourlyMin, 64); err == nil {
+			filter.HourlyRateMin = &v
+		}
+	}
+
+	// ======================
+	// CALL USECASE
+	// ======================
+
+	jobs, err := h.jobUsecase.ListRecommendedJobs(filter)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"jobs": jobs,
+	})
+}
 func parseUint(s string) uint {
 	v, _ := strconv.Atoi(s)
 	return uint(v)

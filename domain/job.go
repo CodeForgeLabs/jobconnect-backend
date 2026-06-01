@@ -62,6 +62,9 @@ type Job struct {
 	Status            JobStatus `gorm:"type:varchar(20);default:'OPEN'" json:"status"`
 	ApplicationsCount int       `gorm:"default:0" json:"applications_count"`
 
+	// INVITED USER
+	InvitedUserId uint `gorm:"index" json:"invited_user_id,omitempty"`
+
 	Deadline   *time.Time  `json:"deadline,omitempty"`
 	Milestones []Milestone `gorm:"foreignKey:JobID;constraint:OnDelete:CASCADE;" json:"milestones,omitempty"`
 
@@ -83,12 +86,14 @@ type Milestone struct {
 
 type JobRepository interface {
 	CreateJob(job *Job) error
+	InviteUserToJob(jobID uint, userID uint, clientId uint) error
 	GetJobByID(id uint) (*Job, error)
 	UpdateJob(job *Job) error
 	DeleteJob(id uint) error
 	ListJobs(filter JobFilter) ([]*Job, error)
 	ListMyJobs(userID uint) ([]*Job, error)
 	ListJobByClientId(clientID uint) ([]*Job, error)
+	ListRecommendedJobs(filter JobFilter) ([]*Job, error)
 }
 
 type JobFilter struct {
@@ -103,6 +108,7 @@ type JobFilter struct {
 	Skills          []string // filter by skills (comma-separated or JSON)
 	BudgetMin       *float64
 	HourlyRateMin   *float64
+	RecommendedFor  *uint
 }
 
 func ParseJobType(s string) JobType {

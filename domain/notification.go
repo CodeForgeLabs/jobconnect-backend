@@ -15,6 +15,7 @@ const (
 	NotifyContractStatus       NotificationType = "CONTRACT_STATUS_CHANGED"
 	NotifyWeeklyPaymentRelased NotificationType = "WEEKLY_PAYMENT_RELASED"
 	NotifyJobDeleted           NotificationType = "JOB_DELETED"
+	NotifyInvitationToJob      NotificationType = "INVITATION_TO_JOB"
 )
 
 type Notification struct {

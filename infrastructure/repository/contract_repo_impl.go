@@ -138,12 +138,26 @@ func (r *ContractRepository) CreateContract(jobId, freelancerId string, clientID
 	}
 
 	// =========================
-	// UPDATE PROPOSAL STATUS
+	// UPDATE SELECTED PROPOSAL
 	// =========================
 	if err := tx.Model(&proposal).
 		Update("status", domain.ProposalHired).Error; err != nil {
 		tx.Rollback()
 		return fmt.Errorf("failed to update proposal status: %w", err)
+	}
+
+	// =========================
+	// REJECT OTHER PROPOSALS
+	// =========================
+	if err := tx.Model(&domain.Proposal{}).
+		Where("job_id = ? AND id <> ?", job.ID, proposal.ID).
+		Where("status IN ?", []domain.ProposalStatus{
+			domain.ProposalPending,
+			domain.ProposalInvited,
+		}).
+		Update("status", domain.ProposalRejected).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to reject other proposals: %w", err)
 	}
 
 	// =========================
