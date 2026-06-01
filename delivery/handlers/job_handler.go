@@ -80,9 +80,14 @@ func NewJobHandler(jobUsecase *usecase.JobUsecase) *JobHandler {
 // @Router /jobs [post]
 func (h *JobHandler) CreateJob(w http.ResponseWriter, r *http.Request) {
 
-	userID, _, err := auth.GetUserFromToken(r)
+	userID, role, err := auth.GetUserFromToken(r)
 	if err != nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if role != string(domain.RoleClient) {
+		http.Error(w, "only clients can create jobs", http.StatusForbidden)
 		return
 	}
 
