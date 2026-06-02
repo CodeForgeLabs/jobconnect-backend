@@ -21,6 +21,16 @@ func NewContractRepository(db *gorm.DB, notificationRepo domain.NotificationRepo
 }
 
 func (r *ContractRepository) CreateContract(jobId, freelancerId string, clientID uint) error {
+	// check first if we have already created the contract between this this freelancerId and client id or if this client id is hired someone for this job then return an error
+	var econtract domain.Contract
+	err := r.db.
+		Where("job_id = ?", jobId).
+		First(&econtract).
+		Error
+
+	if err == nil {
+		return fmt.Errorf("a contract already exists for this job")
+	}
 	// parse IDs
 	jobIDUint, err := strconv.ParseUint(jobId, 10, 64)
 	if err != nil {

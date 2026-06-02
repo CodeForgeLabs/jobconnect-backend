@@ -33,6 +33,15 @@ func (r *ProposalRepository) CreateProposal(proposal *domain.Proposal) error {
 		}
 	}
 	tx := r.db.Begin()
+	// check if the freelancer already applied if yes reject the second
+	// Check if the sender has already applied for the job
+	var existingProposal domain.Proposal
+	err = r.db.Where("job_id = ? AND sender_id = ?", proposal.JobID, proposal.SenderID).First(&existingProposal).Error
+	if err == nil {
+		// A proposal already exists for this job by this sender
+		return fmt.Errorf("sender has already applied for this job")
+	}
+
 	// Check freelancer connects
 	var user domain.User
 	if err := tx.First(&user, proposal.SenderID).Error; err != nil {
