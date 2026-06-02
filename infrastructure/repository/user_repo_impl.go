@@ -38,6 +38,14 @@ func (r *UserRepository) CreateUser(user *domain.User) error {
 	if user.Role == domain.RoleFreelancer {
 		user.Connect = 50
 	}
+	// check user already exist
+	exists, err := r.CheckUserExists(user.Email)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return gorm.ErrRegistered
+	}
 	return r.db.Create(user).Error
 }
 func (r *UserRepository) GetUserByID(id uint) (*domain.User, error) {
