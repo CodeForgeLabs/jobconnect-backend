@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"job-connect/auth"
 	"job-connect/domain"
 	usecase "job-connect/usecase"
@@ -15,6 +16,9 @@ import (
 
 type UserHandler struct {
 	userUsecase *usecase.UserUsecase
+}
+type RequestForgotPassword struct {
+	IsForgotPassword bool `json:"is_forgot_password"`
 }
 type LoginRequest struct {
 	Email    string `json:"email"`
@@ -114,7 +118,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		FirstName:   req.FirstName,
 		LastName:    req.LastName,
 		Email:       req.Email,
-		Password:    req.Password, // In production, hash this password!
+		Password:    req.Password,
 		CompanyName: req.CompanyName,
 	}
 
@@ -130,9 +134,9 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		Name:     "token",
 		Value:    token,
 		Path:     "/",
-		MaxAge:   5184000, // 2 months in seconds
-		HttpOnly: true,    // Still keep this! It protects against JS scripts
-		Secure:   true,    // Set to false so it works on http://localhost
+		MaxAge:   5184000,
+		HttpOnly: true, // Still keep this! It protects against JS scripts
+		Secure:   true, // it works on http://localhost
 		SameSite: http.SameSiteNoneMode,
 	})
 	w.Header().Set("Content-Type", "application/json")
@@ -467,6 +471,7 @@ func (h *UserHandler) GetUserBySkill(w http.ResponseWriter, r *http.Request) {
 // @Tags Users
 // @Produce json
 // @Param email query string true "User email"
+// @Param request body handlers.RequestForgotPassword true "Indicates if this is for forgot password flow"
 // @Success 200 {object} map[string]string "Otp sent successfully"
 // @Failure 400 {string} string "Email query parameter is required"
 // @Failure 500 {string} string "Failed to send OTP"
@@ -477,7 +482,28 @@ func (h *UserHandler) SendOtp(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "email query parameter is required", http.StatusBadRequest)
 		return
 	}
-	err := h.userUsecase.SendOtp(email)
+
+	var req RequestForgotPassword
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+	fmt.Println("********************************")
+	fmt.Println(req.IsForgotPassword)
+	if req.IsForgotPassword == true {
+		exists, err := h.userUsecase.CheckUserExists(email)
+		if err != nil {
+			http.Error(w, "Failed to check user existence", http.StatusInternalServerError)
+			return
+		}
+		if !exists {
+			http.Error(w, "No user found with this email", http.StatusBadRequest)
+			return
+		}
+	}
+
+	err = h.userUsecase.SendOtp(email)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

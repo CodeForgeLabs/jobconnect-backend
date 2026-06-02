@@ -99,7 +99,7 @@ func (h *JobHandler) CreateJob(w http.ResponseWriter, r *http.Request) {
 
 	jobType := domain.ParseJobType(req.JobType)
 
-	// 🚨 VALIDATION: FIXED JOB MUST HAVE MILESTONES
+	// FIXED JOB MUST HAVE MILESTONES
 	if jobType == domain.JobTypeFixed && len(req.Milestones) == 0 {
 		http.Error(w, "fixed jobs require milestones", http.StatusBadRequest)
 		return
@@ -121,7 +121,7 @@ func (h *JobHandler) CreateJob(w http.ResponseWriter, r *http.Request) {
 		CreatedBy:       parseUint(userID),
 		Skills:          strings.Join(req.Skills, ","),
 	}
-	// ⭐ attach milestones
+	// attach milestones
 	if jobType == domain.JobTypeFixed {
 		for _, m := range req.Milestones {
 			job.Milestones = append(job.Milestones, domain.Milestone{
