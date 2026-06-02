@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"job-connect/auth"
 	"job-connect/domain"
 	usecase "job-connect/usecase"
@@ -483,27 +482,27 @@ func (h *UserHandler) SendOtp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req RequestForgotPassword
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
-		return
-	}
-	fmt.Println("********************************")
-	fmt.Println(req.IsForgotPassword)
-	if req.IsForgotPassword == true {
-		exists, err := h.userUsecase.CheckUserExists(email)
-		if err != nil {
-			http.Error(w, "Failed to check user existence", http.StatusInternalServerError)
-			return
-		}
-		if !exists {
-			http.Error(w, "No user found with this email", http.StatusBadRequest)
-			return
-		}
-	}
+	// var req RequestForgotPassword
+	// err := json.NewDecoder(r.Body).Decode(&req)
+	// if err != nil {
+	// 	http.Error(w, "Invalid request payload", http.StatusBadRequest)
+	// 	return
+	// }
+	// fmt.Println("********************************")
+	// fmt.Println(req.IsForgotPassword)
+	// if req.IsForgotPassword == true {
+	// 	exists, err := h.userUsecase.CheckUserExists(email)
+	// 	if err != nil {
+	// 		http.Error(w, "Failed to check user existence", http.StatusInternalServerError)
+	// 		return
+	// 	}
+	// 	if !exists {
+	// 		http.Error(w, "No user found with this email", http.StatusBadRequest)
+	// 		return
+	// 	}
+	// }
 
-	err = h.userUsecase.SendOtp(email)
+	err := h.userUsecase.SendOtp(email)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
