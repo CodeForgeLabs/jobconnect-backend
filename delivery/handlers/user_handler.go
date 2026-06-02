@@ -56,13 +56,13 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	user, err := h.userUsecase.Login(req.Email, req.Password)
 	if err != nil {
 		println(err)
-		http.Error(w, "Invalid email or password", http.StatusUnauthorized)
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
 	token, err := auth.CreateToken(user.ID, string(user.Role))
 	if err != nil || token == "" {
-		http.Error(w, "Authentication failed", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -526,6 +526,39 @@ func (h *UserHandler) VerifyOtp(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// ModifyPassword godoc
+// @Summary Modify user password
+// @Description Update the user's password after verifying OTP
+// @Tags Users
+// @Produce json
+// @Param email query string true "User email"
+// @Param new_password query string true "New password"
+// @Success 200 {object} map[string]string "Password modified successfully"
+// @Failure 400 {string} string "Email and new_password query parameters are required"
+// @Failure 500 {string} string "Failed to modify password"
+// @Router /users/modify-password [post]
+func (h *UserHandler) ModifyPassword(w http.ResponseWriter, r *http.Request) {
+	email := r.URL.Query().Get("email")
+	newPassword := r.URL.Query().Get("new_password")
+	if email == "" {
+		http.Error(w, "email query parameter is required", http.StatusBadRequest)
+		return
+	}
+	if newPassword == "" {
+		http.Error(w, "new_password query parameter is required", http.StatusBadRequest)
+		return
+	}
+
+	err := h.userUsecase.ModifyPassword(email, newPassword)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"result": "Password modified successfully",
+	})
+}
 func parseFloat(value string) float64 {
 	if value == "" {
 		return 0
