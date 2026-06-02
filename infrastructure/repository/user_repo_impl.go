@@ -150,13 +150,30 @@ func (r *UserRepository) GetUserBySkill(filter domain.UserFilter) ([]*domain.Use
 }
 
 func (r *UserRepository) SendOtp(email string) error {
-	otpCode := GenerateOtp()
+	// FIRST CHECK IF WE ALREADY HAVE, INSTEAD OF CREATING ONE OVERRIDE IT
+	var existingOtp domain.Otp
+	err := r.db.Where("email = ?", email).First(&existingOtp).Error
+	if err == nil {
+		// record exists, update it
+		existingOtp.OtpCode = GenerateOtp()
+		existingOtp.ExpiresAt = GetOtpExpiryTime()
+		err := chapa.NewBrevoEmailService().SendOTP(email, existingOtp.OtpCode)
+		if err != nil {
+			return err
+		}
+		return r.db.Save(&existingOtp).Error
+	} else if err != gorm.ErrRecordNotFound {
+		// some other error
+		return err
+	}
+
+	// no existing record, create new one
 	otp := domain.Otp{
 		Email:     email,
-		OtpCode:   otpCode,
+		OtpCode:   GenerateOtp(),
 		ExpiresAt: GetOtpExpiryTime(),
 	}
-	err := chapa.NewBrevoEmailService().SendOTP(email, otpCode)
+	err = chapa.NewBrevoEmailService().SendOTP(email, otp.OtpCode)
 	if err != nil {
 		return err
 	}
@@ -180,6 +197,16 @@ func (r *UserRepository) VerifyOtp(email, otp string) (bool, error) {
 	return true, nil // OTP valid
 }
 
+func (r *UserRepository) ModifyPassword(email, newPassword string) error {
+	hashedPassword, err := auth.HashPassword(newPassword)
+	if err != nil {
+		return err
+	}
+
+	return r.db.Model(&domain.User{}).
+		Where("email = ?", email).
+		Update("password", hashedPassword).Error
+}
 func GenerateOtp() string {
 	const otpLength = 4
 	const charset = "0123456789"

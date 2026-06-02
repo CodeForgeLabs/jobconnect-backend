@@ -51,7 +51,7 @@ type UserFilter struct {
 }
 type Otp struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement"`
-	Email     string    `gorm:"column:email;type:varchar(255);not null"`
+	Email     string    `gorm:"column:email;type:varchar(255);unique;not null"`
 	OtpCode   string    `gorm:"column:otp_code;type:varchar(10);not null"`
 	ExpiresAt time.Time `gorm:"column:expires_at;not null"`
 	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime"`
@@ -68,4 +68,5 @@ type UserRepository interface {
 	GetUserBySkill(filter UserFilter) ([]*User, error)
 	SendOtp(email string) error
 	VerifyOtp(email, otp string) (bool, error)
+	ModifyPassword(email, newPassword string) error
 }

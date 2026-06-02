@@ -52,3 +52,7 @@ func (u *UserUsecase) SendOtp(email string) error {
 func (u *UserUsecase) VerifyOtp(email, otp string) (bool, error) {
 	return u.userRepo.VerifyOtp(email, otp)
 }
+
+func (u *UserUsecase) ModifyPassword(email, newPassword string) error {
+	return u.userRepo.ModifyPassword(email, newPassword)
+}
