@@ -176,7 +176,15 @@ func (h *JobHandler) GetJobByID(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} domain.Job
 // @Router /jobs/{id} [patch]
 func (h *JobHandler) UpdateJob(w http.ResponseWriter, r *http.Request) {
-
+	_, role, err := auth.GetUserFromToken(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if role != string(domain.RoleClient) {
+		http.Error(w, "only clients can update jobs", http.StatusForbidden)
+		return
+	}
 	id, _ := strconv.Atoi(mux.Vars(r)["id"])
 
 	job, err := h.jobUsecase.GetJobByID(uint(id))
@@ -253,10 +261,18 @@ func (h *JobHandler) UpdateJob(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} map[string]string
 // @Router /jobs/{id} [delete]
 func (h *JobHandler) DeleteJob(w http.ResponseWriter, r *http.Request) {
-
+	_, role, err := auth.GetUserFromToken(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if role != string(domain.RoleClient) {
+		http.Error(w, "only clients can delete jobs", http.StatusForbidden)
+		return
+	}
 	id, _ := strconv.Atoi(mux.Vars(r)["id"])
 
-	err := h.jobUsecase.DeleteJob(uint(id))
+	err = h.jobUsecase.DeleteJob(uint(id))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -280,6 +296,11 @@ func (h *JobHandler) DeleteJob(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {array} domain.Job
 // @Router /jobs [get]
 func (h *JobHandler) ListJobs(w http.ResponseWriter, r *http.Request) {
+	_, _, err := auth.GetUserFromToken(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
 
 	query := r.URL.Query()
 
@@ -390,6 +411,11 @@ func (h *JobHandler) ListMyJobs(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} GenericMessageResponse
 // @Router /jobs/by-client [get]
 func (h *JobHandler) ListJobByClientId(w http.ResponseWriter, r *http.Request) {
+	_, _, err := auth.GetUserFromToken(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
 	id := r.URL.Query().Get("id")
 	jobs, err := h.jobUsecase.ListJobByClientId(parseUint(id))
 	if err != nil {

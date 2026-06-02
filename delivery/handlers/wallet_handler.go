@@ -84,6 +84,12 @@ func (h *WalletHandler) GetOrCreateWallet(w http.ResponseWriter, r *http.Request
 // @Failure 500 {object} domain.ErrorResponse
 // @Router /wallet/transaction [post]
 func (h *WalletHandler) CreateTransaction(w http.ResponseWriter, r *http.Request) {
+	_, _, err := auth.GetUserFromToken(r)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	var input CreateDepositInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, "Invalid input", http.StatusBadRequest)
@@ -256,7 +262,15 @@ func (h *WalletHandler) FetchTransactions(w http.ResponseWriter, r *http.Request
 // @Failure 500 {object} domain.ErrorResponse
 // @Router /wallet/buy-connect [post]
 func (h *WalletHandler) BuyConnect(w http.ResponseWriter, r *http.Request) {
-
+	_, role, err := auth.GetUserFromToken(r)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if role != string(domain.RoleFreelancer) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
 	var input BuyConnectInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, "Invalid input", http.StatusBadRequest)
@@ -293,6 +307,11 @@ func (h *WalletHandler) BuyConnect(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} domain.ErrorResponse
 // @Router /wallet/withdraw [post]
 func (h *WalletHandler) WithdrawBalance(w http.ResponseWriter, r *http.Request) {
+	_, _, err := auth.GetUserFromToken(r)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
 	var request TransferRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, "Invalid input", http.StatusBadRequest)

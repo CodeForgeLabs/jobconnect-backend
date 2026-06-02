@@ -159,6 +159,15 @@ func (h *ContractHandler) GetContractByID(w http.ResponseWriter, r *http.Request
 // @Failure 500 {object} GenericMessageResponse
 // @Router /contracts/milestone/submit [post]
 func (h *ContractHandler) SubmitMilestone(w http.ResponseWriter, r *http.Request) {
+	_, userRole, err := auth.GetUserFromToken(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if userRole != string(domain.RoleFreelancer) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	var req domain.SubmitMilestoneRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
@@ -235,9 +244,13 @@ func (h *ContractHandler) ModifyMilestoneStatus(w http.ResponseWriter, r *http.R
 // @Failure 500 {object} GenericMessageResponse
 // @Router /contracts/{contract_id}/status [patch]
 func (h *ContractHandler) ModifyContractStatus(w http.ResponseWriter, r *http.Request) {
-	userID, _, err := auth.GetUserFromToken(r)
+	userID, userRole, err := auth.GetUserFromToken(r)
 	if err != nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if userRole != string(domain.RoleClient) {
+		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 
@@ -300,9 +313,13 @@ func (h *ContractHandler) StartWorkSession(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	userID, _, err := auth.GetUserFromToken(r)
+	userID, userRole, err := auth.GetUserFromToken(r)
 	if err != nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if userRole != string(domain.RoleFreelancer) {
+		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 	link, err := h.contractUsecase.StartWorkSession(req.ContractID, parseUint(userID))
@@ -334,9 +351,14 @@ func (h *ContractHandler) EndWorkSession(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	userID, _, err := auth.GetUserFromToken(r)
+	userID, userRole, err := auth.GetUserFromToken(r)
 	if err != nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if userRole != string(domain.RoleFreelancer) {
+		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 
@@ -368,11 +390,11 @@ func (h *ContractHandler) FetchTimeLogs(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// userID, _, err := auth.GetUserFromToken(r)
-	// if err != nil {
-	// 	http.Error(w, "unauthorized", http.StatusUnauthorized)
-	// 	return
-	// }
+	_, _, err := auth.GetUserFromToken(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
 
 	timeLogs, err := h.contractUsecase.FetchTimeLogs(req.ContractID)
 	if err != nil {
@@ -405,11 +427,11 @@ func (h *ContractHandler) FetchTimeElapsed(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// userID, _, err := auth.GetUserFromToken(r)
-	// if err != nil {
-	// 	http.Error(w, "unauthorized", http.StatusUnauthorized)
-	// 	return
-	// }
+	_, _, err := auth.GetUserFromToken(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
 
 	timeElapsed, err := h.contractUsecase.FetchTimeElapsed(req.ContractID)
 	if err != nil {
@@ -442,11 +464,11 @@ func (h *ContractHandler) FetchWeeklyHours(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// userID, _, err := auth.GetUserFromToken(r)
-	// if err != nil {
-	// 	http.Error(w, "unauthorized", http.StatusUnauthorized)
-	// 	return
-	// }
+	_, _, err := auth.GetUserFromToken(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
 
 	weeklyHours, err := h.contractUsecase.FetchWeeklyHours(req.ContractID)
 	if err != nil {
@@ -473,6 +495,12 @@ func (h *ContractHandler) FetchWeeklyHours(w http.ResponseWriter, r *http.Reques
 // @Failure 500 {object} GenericMessageResponse
 // @Router /contracts/work-session/weekly-logs [post]
 func (h *ContractHandler) FetchWeeklyWorkLogs(w http.ResponseWriter, r *http.Request) {
+	_, _, err := auth.GetUserFromToken(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	var req WorkSessionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
@@ -504,6 +532,11 @@ func (h *ContractHandler) FetchWeeklyWorkLogs(w http.ResponseWriter, r *http.Req
 // @Failure 500 {object} GenericMessageResponse
 // @Router /contracts/work-session/pay-weekly-logs [post]
 func (h *ContractHandler) PayWeeklyLogs(w http.ResponseWriter, r *http.Request) {
+	_, _, err := auth.GetUserFromToken(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
 	var req domain.PayWeeklyLogsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
