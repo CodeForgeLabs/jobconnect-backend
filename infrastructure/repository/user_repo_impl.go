@@ -38,6 +38,14 @@ func (r *UserRepository) CreateUser(user *domain.User) error {
 	if user.Role == domain.RoleFreelancer {
 		user.Connect = 50
 	}
+	// check user already exist
+	exists, err := r.CheckUserExists(user.Email)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return gorm.ErrRegistered
+	}
 	return r.db.Create(user).Error
 }
 func (r *UserRepository) GetUserByID(id uint) (*domain.User, error) {
@@ -196,7 +204,14 @@ func (r *UserRepository) VerifyOtp(email, otp string) (bool, error) {
 
 	return true, nil // OTP valid
 }
-
+func (r *UserRepository) CheckUserExists(email string) (bool, error) {
+	var count int64
+	err := r.db.Model(&domain.User{}).Where("email = ?", email).Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
 func (r *UserRepository) ModifyPassword(email, newPassword string) error {
 	hashedPassword, err := auth.HashPassword(newPassword)
 	if err != nil {

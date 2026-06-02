@@ -56,3 +56,6 @@ func (u *UserUsecase) VerifyOtp(email, otp string) (bool, error) {
 func (u *UserUsecase) ModifyPassword(email, newPassword string) error {
 	return u.userRepo.ModifyPassword(email, newPassword)
 }
+func (u *UserUsecase) CheckUserExists(email string) (bool, error) {
+	return u.userRepo.CheckUserExists(email)
+}

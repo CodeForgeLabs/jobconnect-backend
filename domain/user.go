@@ -69,4 +69,5 @@ type UserRepository interface {
 	SendOtp(email string) error
 	VerifyOtp(email, otp string) (bool, error)
 	ModifyPassword(email, newPassword string) error
+	CheckUserExists(email string) (bool, error)
 }

@@ -32,9 +32,20 @@ func (r *ProposalRepository) CreateProposal(proposal *domain.Proposal) error {
 			return fmt.Errorf("you are not invited to this job")
 		}
 	}
-
 	tx := r.db.Begin()
+	// Check freelancer connects
+	var user domain.User
+	if err := tx.First(&user, proposal.SenderID).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("user not found")
+	}
 
+	const requiredConnects = 10
+
+	if user.Connect < requiredConnects {
+		tx.Rollback()
+		return fmt.Errorf("insufficient connects: %d required", requiredConnects)
+	}
 	// 1. create proposal
 	if err := tx.Create(proposal).Error; err != nil {
 		tx.Rollback()
@@ -51,7 +62,16 @@ func (r *ProposalRepository) CreateProposal(proposal *domain.Proposal) error {
 		tx.Rollback()
 		return err
 	}
-
+	// Deduct connects
+	if err := tx.Model(&domain.User{}).
+		Where("id = ?", proposal.SenderID).
+		UpdateColumn(
+			"connect",
+			gorm.Expr("connect - ?", requiredConnects),
+		).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
 	return tx.Commit().Error
 }
 
