@@ -32,11 +32,11 @@ func (r *Router) RegisterRoute() {
 	fmt.Println("Connected to database")
 
 	// FOR DEVELOPMENT ONLY
-	err = database.Migrate(db)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("Database migrated successfully")
+	// err = database.Migrate(db)
+	//if err != nil {
+		//log.Fatal(err)
+	//}
+	//fmt.Println("Database migrated successfully")
 
 	// USER ROUTES
 	userRepo := repository.NewUserRepository(db)
