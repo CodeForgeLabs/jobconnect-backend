@@ -189,7 +189,15 @@ func (h *ProposalHandler) ListProposalsByJobID(w http.ResponseWriter, r *http.Re
 // @Failure 500 {object} GenericMessageResponse
 // @Router /proposals/{id} [patch]
 func (h *ProposalHandler) UpdateProposal(w http.ResponseWriter, r *http.Request) {
-
+	_, role, err := auth.GetUserFromToken(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if role != string(domain.RoleClient) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	id := mux.Vars(r)["id"]
 	idUint, err := strconv.Atoi(id)
 	if err != nil {
@@ -240,6 +248,15 @@ func (h *ProposalHandler) UpdateProposal(w http.ResponseWriter, r *http.Request)
 // @Failure 500 {object} GenericMessageResponse
 // @Router /proposals/{id} [delete]
 func (h *ProposalHandler) DeleteProposal(w http.ResponseWriter, r *http.Request) {
+	_, role, err := auth.GetUserFromToken(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if role != string(domain.RoleClient) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	id := mux.Vars(r)["id"]
 	idUint, err := strconv.Atoi(id)
 	if err != nil {
