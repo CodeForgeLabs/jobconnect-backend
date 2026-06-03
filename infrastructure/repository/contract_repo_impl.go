@@ -790,6 +790,9 @@ func (r *ContractRepository) StartWorkSession(contractId, freelancerId uint) (st
 	if err := r.db.First(&client, contract.ClientID).Error; err != nil {
 		return "", fmt.Errorf("client not found: %w", err)
 	}
+	if contract.Status == domain.ContractCompleted || contract.Status == domain.ContractCancelled {
+		return "", fmt.Errorf("cannot start work session on a completed or cancelled contract")
+	}
 	// 1. Create time log
 	log := &domain.TimeLog{
 		ContractID:   contractId,

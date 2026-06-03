@@ -141,8 +141,8 @@ func (r *walletRepo) BuyConnect(amount int, userId uint) (bool, error) {
 	transaction := domain.WalletTransaction{
 		WalletID:    wallet.ID,
 		TxRef:       txRef,
-		Type:        "DEBIT", // Or your domain.TransactionTypeDebit enum
-		Status:      domain.TxSuccess,
+		Type:        domain.TxWithdraw, // Or your domain.TransactionTypeDebit enum
+		Status:      domain.TxSuccess,  // Or your domain.TransactionStatusSuccess enum
 		AmountMinor: int64(totalCost),
 		Description: fmt.Sprintf("Purchased %d connects", amount),
 		Provider:    "INTERNAL", // Internal wallet exchange, not Chapa
