@@ -584,6 +584,46 @@ func (h *UserHandler) ModifyPassword(w http.ResponseWriter, r *http.Request) {
 		"result": "Password modified successfully",
 	})
 }
+
+// CheckUserExists godoc
+// @Summary Check if user exists by email
+// @Description Check if a user account exists for the given email address
+// @Tags Users
+// @Produce json
+// @Param email query string true "User email"
+// @Success 200 {object} map[string]bool "User existence result"
+// @Failure 400 {string} string "Email query parameter is required"
+// @Failure 500 {string} string "Failed to check user existence"
+// @Router /users/check-exists [get]
+func (h *UserHandler) CheckUserExists(w http.ResponseWriter, r *http.Request) {
+	email := r.URL.Query().Get("email")
+	if email == "" {
+		http.Error(w, "email query parameter is required", http.StatusBadRequest)
+		return
+	}
+
+	exists, err := h.userUsecase.CheckUserExists(email)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{
+		"exists": exists,
+	})
+}
+
+// WakeUpRender godoc
+// @Summary Wake up call for server
+// @Description Endpoint to wake up the server (useful for free hosting services)
+// @Tags Users
+// @Produce plain
+// @Success 200 {string} string "Wake up call received!"
+// @Router /users/wake-up [get]
+func (h *UserHandler) WakeUpRender(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Wake up call received!"))
+}
 func parseFloat(value string) float64 {
 	if value == "" {
 		return 0
