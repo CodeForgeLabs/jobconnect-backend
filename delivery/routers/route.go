@@ -32,10 +32,10 @@ func (r *Router) RegisterRoute() {
 	fmt.Println("Connected to database")
 
 	// FOR DEVELOPMENT ONLY
-	err = database.Migrate(db)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// err = database.Migrate(db)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 	fmt.Println("Database migrated successfully")
 
 	// USER ROUTES
@@ -81,7 +81,9 @@ func (r *Router) RegisterRoute() {
 	userRoutes.HandleFunc("/send-otp", userHandler.SendOtp).Methods("POST")
 	userRoutes.HandleFunc("/verify-otp", userHandler.VerifyOtp).Methods("POST")
 	userRoutes.HandleFunc("/modify-password", userHandler.ModifyPassword).Methods("POST")
-
+	userRoutes.HandleFunc("/check-exists", userHandler.CheckUserExists).Methods("GET")
+	userRoutes.HandleFunc("/wake-up", userHandler.WakeUpRender).Methods("GET")
+	// https://jobconnect-backend-4qq7.onrender.com/api/v1/users/wake-up
 	// Protected routes
 	userRoutes.HandleFunc("/me", userHandler.GetUserByID).Methods("GET")
 	userRoutes.HandleFunc("/me", userHandler.UpdateUser).Methods("PATCH")
